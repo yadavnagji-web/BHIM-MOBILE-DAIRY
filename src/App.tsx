@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import {
   Search,
   Users,
@@ -881,6 +882,9 @@ export default function App() {
         triggerReason={interstitialReason}
         onClose={() => setInterstitialAdOpen(false)}
       />
+
+      {/* Vercel Speed Insights */}
+      <SpeedInsights />
     </div>
   );
 }
