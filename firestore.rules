@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Village list: readable by everyone, manageable only by authenticated admin
+    match /villages/{villageId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Contacts: readable by everyone, manageable only by authenticated admin
+    match /contacts/{contactId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null;
+    }
+
+    // Approval Requests: public can submit requests; readable and manageable by admin
+    match /approval_requests/{requestId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null;
+    }
+
+    // Admin metadata collection
+    match /admins/{adminId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

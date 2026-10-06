@@ -1,0 +1,8 @@
+{
+  "name": "Bhim Directory",
+  "description": "डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी - ग्राम अनुसार मोबाइल डायरेक्टरी. यह डायरेक्टरी केवल यादव समाज वागड़ चौरासी क्षेत्र के लिए है ",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

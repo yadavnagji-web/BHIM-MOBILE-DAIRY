@@ -1,0 +1,62 @@
+{
+  "id": "/",
+  "name": "BHIM DIRECTORY - डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी",
+  "short_name": "Bhim Directory",
+  "description": "डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी - ग्राम अनुसार मोबाइल डायरेक्टरी एवं आपातकालीन संपर्क।",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay"],
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#172554",
+  "lang": "hi",
+  "dir": "ltr",
+  "categories": ["social", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/ambedkar_portrait.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "होम डायरेक्टरी",
+      "short_name": "होम",
+      "url": "/?tab=home",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "गाँव सूची",
+      "short_name": "गाँव",
+      "url": "/?tab=villages",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "हेल्प केंद्र",
+      "short_name": "हेल्प",
+      "url": "/?tab=help",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

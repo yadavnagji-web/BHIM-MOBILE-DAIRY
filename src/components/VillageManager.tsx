@@ -1,0 +1,284 @@
+import React, { useState } from 'react';
+import { Layers, Plus, Edit2, Trash2, X, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { Village } from '../types';
+import { createVillage, updateVillage, deleteVillage, getVillageContactsCount } from '../services/directoryService';
+
+interface VillageManagerProps {
+  villages: Village[];
+  onClose: () => void;
+  onRefresh: () => void;
+}
+
+export const VillageManager: React.FC<VillageManagerProps> = ({
+  villages,
+  onClose,
+  onRefresh,
+}) => {
+  const [newVillageName, setNewVillageName] = useState('');
+  const [editingVillageId, setEditingVillageId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [deletingVillage, setDeletingVillage] = useState<Village | null>(null);
+  const [deleteCount, setDeleteCount] = useState<number | null>(null);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleAddVillage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    if (!newVillageName.trim()) return;
+
+    setLoading(true);
+    try {
+      await createVillage(newVillageName.trim());
+      setSuccess(`गाँव "${newVillageName.trim()}" सफलतापूर्वक जोड़ा गया।`);
+      setNewVillageName('');
+      onRefresh();
+    } catch (err: any) {
+      setError(err.message || 'गाँव जोड़ने में त्रुटि हुई।');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEdit = (v: Village) => {
+    setEditingVillageId(v.id);
+    setEditName(v.name);
+    setError('');
+    setSuccess('');
+  };
+
+  const handleSaveRename = async (id: string) => {
+    if (!editName.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      await updateVillage(id, editName.trim());
+      setSuccess(`गाँव का नाम बदलकर "${editName.trim()}" किया गया।`);
+      setEditingVillageId(null);
+      onRefresh();
+    } catch (err: any) {
+      setError(err.message || 'गाँव का नाम बदलने में त्रुटि हुई।');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const promptDeleteVillage = async (v: Village) => {
+    setError('');
+    setSuccess('');
+    setDeletingVillage(v);
+    setLoading(true);
+    try {
+      const count = await getVillageContactsCount(v.id);
+      setDeleteCount(count);
+    } catch (err: any) {
+      setError('संपर्क संख्या जांचने में त्रुटि।');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmDeleteVillage = async () => {
+    if (!deletingVillage) return;
+    setLoading(true);
+    setError('');
+    try {
+      await deleteVillage(deletingVillage.id);
+      setSuccess(`गाँव "${deletingVillage.name}" सफलतापूर्वक हटाया गया।`);
+      setDeletingVillage(null);
+      setDeleteCount(null);
+      onRefresh();
+    } catch (err: any) {
+      setError(err.message || 'गाँव हटाने में त्रुटि।');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 rounded-t-2xl">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+                गाँव प्रबंधन (Manage Villages)
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                कुल गाँव: {villages.length}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4">
+          {error && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800">
+              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-xs text-emerald-800 font-medium">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <span>{success}</span>
+            </div>
+          )}
+
+          {/* Add New Village Form */}
+          <form onSubmit={handleAddVillage} className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+              नया गाँव जोड़ें
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                id="new-village-name-input"
+                value={newVillageName}
+                onChange={(e) => setNewVillageName(e.target.value)}
+                placeholder="गाँव का नाम दर्ज करें..."
+                className="flex-1 px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-sm font-medium focus:border-emerald-600 outline-none"
+              />
+              <button
+                type="submit"
+                id="add-village-submit-btn"
+                disabled={loading || !newVillageName.trim()}
+                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
+              >
+                <Plus className="w-4 h-4" />
+                <span>जोड़ें</span>
+              </button>
+            </div>
+          </form>
+
+          {/* Village List */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              विद्यमान गाँव सूची
+            </h3>
+            {villages.length === 0 ? (
+              <p className="text-sm text-slate-400 py-4 text-center">कोई गाँव नहीं मिला।</p>
+            ) : (
+              <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                {villages.map((v) => {
+                  const isEditing = editingVillageId === v.id;
+                  return (
+                    <div
+                      key={v.id}
+                      className="p-3 flex items-center justify-between gap-2 bg-white hover:bg-slate-50 transition-colors"
+                    >
+                      {isEditing ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="flex-1 px-3 py-1.5 border border-amber-400 rounded-lg text-sm font-medium outline-none"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveRename(v.id)}
+                            disabled={loading || !editName.trim()}
+                            className="p-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+                            title="सहेजें"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingVillageId(null)}
+                            className="p-1.5 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
+                            title="रद्द करें"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">🏘️</span>
+                            <span className="text-sm font-bold text-slate-800">{v.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(v)}
+                              className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="नाम बदलें (Rename)"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => promptDeleteVillage(v)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="गाँव हटाएँ (Delete)"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Delete Confirmation Modal for Village */}
+        {deletingVillage && (
+          <div className="p-4 bg-rose-50 border-t border-rose-200 rounded-b-2xl">
+            <h4 className="text-sm font-bold text-rose-900">
+              गाँव हटाने की पुष्टि: "{deletingVillage.name}"
+            </h4>
+            {deleteCount !== null && deleteCount > 0 ? (
+              <p className="text-xs text-rose-700 mt-1">
+                ⚠️ इस गाँव में <strong>{deleteCount}</strong> संपर्क दर्ज हैं। जब तक सभी संपर्क हटाए या दूसरे गाँव में स्थानांतरित नहीं किए जाते, यह गाँव नहीं हटाया जा सकता।
+              </p>
+            ) : (
+              <p className="text-xs text-slate-600 mt-1">
+                इस गाँव में 0 संपर्क हैं। क्या आप निश्चित हैं?
+              </p>
+            )}
+            <div className="flex items-center justify-end gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => setDeletingVillage(null)}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteVillage}
+                disabled={loading || (deleteCount !== null && deleteCount > 0)}
+                className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'पुष्टि करें व हटाएँ'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
