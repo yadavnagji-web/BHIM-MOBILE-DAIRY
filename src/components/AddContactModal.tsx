@@ -273,25 +273,26 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
         </div>
 
         {/* Modal Body / Form */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4">
-          {/* Security Banner according to OTP Mode */}
-          {currentOtpMode === 'without_otp' ? (
-            <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl flex items-start gap-2.5 text-xs text-amber-950">
-              <Sparkles className="w-4.5 h-4.5 text-amber-700 flex-shrink-0 mt-0.5" />
-              <div className="leading-relaxed">
-                <span className="font-extrabold text-amber-900">⚡ बिना OTP मोड सक्रिय: </span>
-                नया सदस्य बिना OTP के सीधे जुड़ेगा। (ध्यान रहे: नंबर हटाना बिना OTP नहीं हो सकता, हटाने के लिए OTP या केवल एडमिन विशेषाधिकार मान्य है)।
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
+            {/* Security Banner according to OTP Mode */}
+            {currentOtpMode === 'without_otp' ? (
+              <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl flex items-start gap-2.5 text-xs text-amber-950">
+                <Sparkles className="w-4.5 h-4.5 text-amber-700 flex-shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <span className="font-extrabold text-amber-900">⚡ बिना OTP मोड सक्रिय: </span>
+                  नया सदस्य बिना OTP के सीधे जुड़ेगा।
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-xs text-emerald-950">
-              <ShieldCheck className="w-4.5 h-4.5 text-emerald-700 flex-shrink-0 mt-0.5" />
-              <div className="leading-relaxed">
-                <span className="font-extrabold text-emerald-900">सुरक्षा व्यवस्था (With OTP Mode): </span>
-                कोई भी फर्जी या गलत नंबर न जोड़ सके, इसलिए नंबर जोड़ने के लिए आपके <strong>WhatsApp</strong> पर OTP भेजा जाएगा।
+            ) : (
+              <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-xs text-emerald-950">
+                <ShieldCheck className="w-4.5 h-4.5 text-emerald-700 flex-shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <span className="font-extrabold text-emerald-900">सुरक्षा व्यवस्था (With OTP Mode): </span>
+                  कोई भी फर्जी या गलत नंबर न जोड़ सके, इसलिए नंबर जोड़ने के लिए आपके <strong>WhatsApp</strong> पर OTP भेजा जाएगा।
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Admin Bypass Toggle */}
           {isAdmin && (
@@ -574,15 +575,16 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
               })}
             </div>
           </div>
+</div>
 
-          {/* Form Actions */}
-          <div className="pt-2 flex items-center justify-end gap-2.5">
+          {/* Form Actions Footer (Always Visible at Bottom) */}
+          <div className="p-4 bg-slate-50 border-t border-slate-200 rounded-b-3xl sm:rounded-b-2xl flex items-center justify-between gap-3 shrink-0">
             <button
               type="button"
               id="cancel-add-contact-btn"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-100 transition-colors cursor-pointer"
             >
               रद्द करें
             </button>
@@ -590,15 +592,18 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
               type="submit"
               id="save-contact-btn"
               disabled={submitting}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-blue-700/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-700 to-indigo-800 hover:from-blue-800 hover:to-indigo-900 active:scale-[0.98] text-white text-base font-black shadow-lg shadow-blue-700/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {submitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin" />
                   <span>सहेजा जा रहा है...</span>
                 </>
               ) : (
-                <span>सहेजें (Save Contact)</span>
+                <>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-300" />
+                  <span>सहेजें (Save Contact)</span>
+                </>
               )}
             </button>
           </div>

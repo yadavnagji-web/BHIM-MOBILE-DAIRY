@@ -102,7 +102,8 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
           {errorMessage && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800">
               <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
@@ -259,15 +260,16 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-medium focus:bg-white focus:border-amber-600 focus:ring-2 focus:ring-amber-600/20 outline-none transition-all"
             />
           </div>
+          </div>
 
-          {/* Actions */}
-          <div className="pt-2 flex items-center justify-end gap-2.5">
+          {/* Actions Footer (Pinned at bottom) */}
+          <div className="p-4 bg-slate-50 border-t border-slate-200 rounded-b-3xl sm:rounded-b-2xl flex items-center justify-between gap-3 shrink-0">
             <button
               type="button"
               id="cancel-edit-btn"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors"
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-100 transition-colors cursor-pointer"
             >
               रद्द करें
             </button>
@@ -275,7 +277,7 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
               type="submit"
               id="update-contact-btn"
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-amber-600/20 transition-all disabled:opacity-50"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-amber-600/20 transition-all disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>

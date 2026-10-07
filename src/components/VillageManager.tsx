@@ -252,28 +252,28 @@ export const VillageManager: React.FC<VillageManagerProps> = ({
             </h4>
             {deleteCount !== null && deleteCount > 0 ? (
               <p className="text-xs text-rose-700 mt-1">
-                ⚠️ इस गाँव में <strong>{deleteCount}</strong> संपर्क दर्ज हैं। जब तक सभी संपर्क हटाए या दूसरे गाँव में स्थानांतरित नहीं किए जाते, यह गाँव नहीं हटाया जा सकता।
+                ⚠️ ध्यान दें: इस गाँव में <strong>{deleteCount}</strong> संपर्क दर्ज हैं। गाँव हटाने पर इसके सभी {deleteCount} संपर्क भी डेटाबेस से हट जाएँगे।
               </p>
             ) : (
               <p className="text-xs text-slate-600 mt-1">
-                इस गाँव में 0 संपर्क हैं। क्या आप निश्चित हैं?
+                क्या आप निश्चित हैं कि आप इस गाँव को हटाना चाहते हैं?
               </p>
             )}
             <div className="flex items-center justify-end gap-2 mt-3">
               <button
                 type="button"
                 onClick={() => setDeletingVillage(null)}
-                className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100"
+                className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
                 रद्द करें
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDeleteVillage}
-                disabled={loading || (deleteCount !== null && deleteCount > 0)}
-                className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={loading}
+                className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
-                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'पुष्टि करें व हटाएँ'}
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'पुष्टि करें व हटाएँ (Delete)'}
               </button>
             </div>
           </div>

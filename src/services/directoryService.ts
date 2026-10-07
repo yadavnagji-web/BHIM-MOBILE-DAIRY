@@ -181,15 +181,26 @@ export function subscribeToApprovalRequests(
 // -------------------------------------------------------------
 export async function seedInitialDataIfEmpty(): Promise<void> {
   try {
+    const docRef = doc(db, 'settings', 'global');
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists() && docSnap.data()?.hasBeenSeeded) {
+      // Already seeded previously. Do not re-seed even if villages were deleted.
+      return;
+    }
+
     const villageSnap = await getDocs(villagesCol);
     if (villageSnap.empty) {
       console.log('Seeding initial villages into Firestore...');
       const batch = writeBatch(db);
       for (const v of INITIAL_VILLAGES) {
-        const docRef = doc(villagesCol, v.id);
-        batch.set(docRef, { name: v.name, createdAt: Date.now() });
+        const vRef = doc(villagesCol, v.id);
+        batch.set(vRef, { name: v.name, createdAt: Date.now() });
       }
+      batch.set(docRef, { hasBeenSeeded: true }, { merge: true });
       await batch.commit();
+    } else {
+      // Mark as seeded so future deletions don't trigger re-seed
+      await setDoc(docRef, { hasBeenSeeded: true }, { merge: true });
     }
   } catch (err) {
     console.error('Error seeding initial data:', err);
@@ -272,8 +283,20 @@ export async function updateVillage(id: string, name: string): Promise<void> {
 }
 
 export async function deleteVillage(id: string): Promise<void> {
-  const docRef = doc(db, 'villages', id);
-  await deleteDoc(docRef);
+  const batch = writeBatch(db);
+  
+  // 1. Delete village doc
+  const villageRef = doc(db, 'villages', id);
+  batch.delete(villageRef);
+
+  // 2. Delete associated contacts belonging to this village
+  const q = query(contactsCol, where('villageId', '==', id));
+  const snap = await getDocs(q);
+  snap.docs.forEach((d) => {
+    batch.delete(doc(db, 'contacts', d.id));
+  });
+
+  await batch.commit();
 }
 
 export async function getVillageContactsCount(villageId: string): Promise<number> {
