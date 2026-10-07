@@ -11,7 +11,7 @@ import {
   RotateCcw,
   Sparkles
 } from 'lucide-react';
-import { Village } from '../types';
+import { Village, Contact } from '../types';
 import {
   createContact,
   submitApprovalRequest,
@@ -22,13 +22,18 @@ import {
 } from '../services/directoryService';
 import { sendWhatsAppOtp, verifyWhatsAppOtp } from '../services/otpService';
 import { COMMON_CATEGORIES } from '../services/sampleData';
+import {
+  validateHindiField,
+  hasEnglishLetters,
+  transliterateEnglishToHindi
+} from '../utils/hindiValidator';
 
 interface AddContactModalProps {
   villages: Village[];
   defaultVillageId?: string;
   isAdmin?: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (newContact?: Contact) => void;
 }
 
 export const AddContactModal: React.FC<AddContactModalProps> = ({
@@ -38,8 +43,9 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const currentSettings = getLocalCachedSettings();
-  const currentOtpMode = currentSettings.otpMode || 'with_otp';
+  const [currentOtpMode, setCurrentOtpMode] = useState<'with_otp' | 'without_otp'>(
+    getLocalCachedSettings().otpMode || 'with_otp'
+  );
 
   const [villageId, setVillageId] = useState(defaultVillageId || (villages[0]?.id || ''));
   const [name, setName] = useState('');
@@ -48,17 +54,14 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
   const [alternateMobile, setAlternateMobile] = useState('');
   const [category, setCategory] = useState('');
 
-  // If in 'without_otp' mode, OTP is not mandatory for adding
+  // Admin NEVER needs OTP; users only need OTP if mode is 'with_otp'
   const isOtpMandatory = currentOtpMode === 'with_otp' && !isAdmin;
 
-  // Admin bypass toggle (only visible to logged-in admin)
-  const [adminBypassOtp, setAdminBypassOtp] = useState(isAdmin || currentOtpMode === 'without_otp');
-
-  // Load latest settings on mount
+  // Load latest settings from Realtime Database on mount
   useEffect(() => {
     getAppSettings().then((s) => {
-      if (s.otpMode === 'without_otp') {
-        setAdminBypassOtp(true);
+      if (s.otpMode) {
+        setCurrentOtpMode(s.otpMode);
       }
     });
   }, []);
@@ -171,9 +174,20 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
       return;
     }
 
-    if (!name.trim()) {
-      setFormError('कृपया व्यक्ति का नाम दर्ज करें।');
+    // Strict Hindi validation for Name
+    const nameCheck = validateHindiField(name, 'व्यक्ति का नाम', true);
+    if (!nameCheck.valid) {
+      setFormError(nameCheck.error || 'कृपया नाम केवल हिंदी (देवनागरी) में दर्ज करें।');
       return;
+    }
+
+    // Strict Hindi validation for Father's Name (if provided)
+    if (fatherName.trim()) {
+      const fatherCheck = validateHindiField(fatherName, 'पिता का नाम', false);
+      if (!fatherCheck.valid) {
+        setFormError(fatherCheck.error || 'कृपया पिता का नाम केवल हिंदी (देवनागरी) में दर्ज करें।');
+        return;
+      }
     }
 
     if (!isMobileValid) {
@@ -181,8 +195,8 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
       return;
     }
 
-    // Require OTP verification if in with_otp mode and not bypassed
-    if (isOtpMandatory && !isOtpVerified && !adminBypassOtp) {
+    // Require OTP verification if in with_otp mode and not admin
+    if (isOtpMandatory && !isOtpVerified) {
       setFormError('कृपया पहले अपने मोबाइल नंबर पर WhatsApp OTP भेजकर सत्यापित (Verify) करें।');
       return;
     }
@@ -195,52 +209,32 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
       }
     }
 
-    setSubmitting(true);
-    try {
-      const isDirectNoOtpMode = currentOtpMode === 'without_otp';
+    const newContactObj: Contact = {
+      id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      villageId,
+      villageName: selectedVillage ? selectedVillage.name : '',
+      name: name.trim(),
+      fatherName: fatherName.trim(),
+      mobile: cleanMobile,
+      alternateMobile: alternateMobile.trim() ? normalizeIndianMobile(alternateMobile) : '',
+      category: category.trim() || 'सामान्य',
+      address: '',
+      remark: isAdmin
+        ? 'एडमिन प्रविष्टि (Admin Direct)'
+        : (isOtpVerified ? 'WhatsApp Verified (OTP सत्यापित)' : 'बिना OTP (Direct Entry)'),
+      status: 'approved',
+      addedWithOtp: isOtpVerified,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
 
-      if (isDirectNoOtpMode || isAdmin) {
-        // Direct addition: No OTP required to add
-        await createContact({
-          villageId,
-          villageName: selectedVillage ? selectedVillage.name : '',
-          name: name.trim(),
-          fatherName: fatherName.trim(),
-          mobile: cleanMobile,
-          alternateMobile: alternateMobile.trim() ? normalizeIndianMobile(alternateMobile) : '',
-          category: category.trim() || 'सामान्य',
-          address: '',
-          remark: isOtpVerified ? 'WhatsApp Verified' : 'बिना OTP (Direct Entry)',
-          status: 'approved',
-          addedWithOtp: isOtpVerified,
-        });
-        setFormSuccess('✅ संपर्क डायरेक्टरी में सफलतापूर्वक जोड़ दिया गया!');
-      } else {
-        // with_otp mode: user verified with WhatsApp OTP
-        await createContact({
-          villageId,
-          villageName: selectedVillage ? selectedVillage.name : '',
-          name: name.trim(),
-          fatherName: fatherName.trim(),
-          mobile: cleanMobile,
-          alternateMobile: alternateMobile.trim() ? normalizeIndianMobile(alternateMobile) : '',
-          category: category.trim() || 'सामान्य',
-          address: '',
-          remark: 'WhatsApp Verified (OTP सत्यापित)',
-          status: 'approved',
-          addedWithOtp: true,
-        });
-        setFormSuccess('✅ WhatsApp OTP सत्यापित! संपर्क डायरेक्टरी में जुड़ गया!');
-      }
+    // Instant zero-delay return to UI (0ms)
+    onSuccess(newContactObj);
 
-      setTimeout(() => {
-        onSuccess();
-      }, 1400);
-    } catch (err: any) {
-      setFormError(err.message || 'संपर्क जोड़ने में त्रुटि हुई। कृपया पुनः प्रयास करें।');
-    } finally {
-      setSubmitting(false);
-    }
+    // Save directly to Firebase Realtime Database in background
+    createContact(newContactObj).catch((err: any) => {
+      console.warn('Realtime DB write note:', err);
+    });
   };
 
   return (
@@ -254,11 +248,20 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 leading-tight">
-                नया संपर्क जोड़ें
+                {isAdmin ? 'नया संपर्क जोड़ें (एडमिन)' : 'नया संपर्क जोड़ें'}
               </h2>
               <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-semibold">
-                <MessageCircle className="w-3.5 h-3.5 text-[#25D366] fill-[#25D366]" />
-                <span>WhatsApp OTP सुरक्षित सत्यापन</span>
+                {isAdmin ? (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                    <span>त्वरित प्रविष्टि (सीधे जोड़ें)</span>
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="w-3.5 h-3.5 text-[#25D366] fill-[#25D366]" />
+                    <span>WhatsApp OTP सुरक्षित सत्यापन</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -275,8 +278,16 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
         {/* Modal Body / Form */}
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
-            {/* Security Banner according to OTP Mode */}
-            {currentOtpMode === 'without_otp' ? (
+            {/* Security Banner according to Mode */}
+            {isAdmin ? (
+              <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl flex items-start gap-2.5 text-xs text-amber-950">
+                <ShieldCheck className="w-4.5 h-4.5 text-amber-700 flex-shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <span className="font-extrabold text-amber-900">👑 मुख्य एडमिन (NAGJI YADAV): </span>
+                  आप बिना किसी OTP के सीधे व तुरंत संपर्क जोड़ सकते हैं।
+                </div>
+              </div>
+            ) : currentOtpMode === 'without_otp' ? (
               <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl flex items-start gap-2.5 text-xs text-amber-950">
                 <Sparkles className="w-4.5 h-4.5 text-amber-700 flex-shrink-0 mt-0.5" />
                 <div className="leading-relaxed">
@@ -293,25 +304,6 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 </div>
               </div>
             )}
-
-          {/* Admin Bypass Toggle */}
-          {isAdmin && (
-            <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between text-xs text-amber-900">
-              <div className="flex items-center gap-2 font-bold">
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                <span>एडमिन मोड: OTP बाईपास करें</span>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={adminBypassOtp}
-                  onChange={(e) => setAdminBypassOtp(e.target.checked)}
-                  className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
-                />
-                <span className="text-[11px] font-semibold text-slate-700">बिना OTP जोड़ें</span>
-              </label>
-            </div>
-          )}
 
           {/* Status Messages */}
           {formError && (
@@ -351,35 +343,75 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
             </select>
           </div>
 
-          {/* Person Name */}
+          {/* Person Name (Hindi Only) */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-              नाम <span className="text-rose-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                नाम <span className="text-rose-500">*</span> <span className="text-2xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">केवल हिंदी</span>
+              </label>
+              {hasEnglishLetters(name) && (
+                <button
+                  type="button"
+                  onClick={() => setName(transliterateEnglishToHindi(name))}
+                  className="text-2xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 transition cursor-pointer"
+                >
+                  ✨ हिंदी में बदलें
+                </button>
+              )}
+            </div>
             <input
               type="text"
               id="add-contact-name-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="उदा. नगजी यादव"
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-medium focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 outline-none transition-all"
+              className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-slate-900 text-sm font-medium focus:bg-white outline-none transition-all ${
+                hasEnglishLetters(name)
+                  ? 'border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-400/20'
+                  : 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20'
+              }`}
               required
             />
+            {hasEnglishLetters(name) && (
+              <p className="text-2xs text-rose-600 font-bold mt-1">
+                ⚠️ केवल हिंदी (देवनागरी लिपि) मान्य है! अंग्रेज़ी अक्षर स्वीकार्य नहीं हैं।
+              </p>
+            )}
           </div>
 
-          {/* Father's Name */}
+          {/* Father's Name (Hindi Only) */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-              पिता का नाम <span className="text-slate-400 font-normal">(Father's Name - ऐच्छिक)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                पिता का नाम <span className="text-slate-400 font-normal">(ऐच्छिक)</span> <span className="text-2xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">केवल हिंदी</span>
+              </label>
+              {hasEnglishLetters(fatherName) && (
+                <button
+                  type="button"
+                  onClick={() => setFatherName(transliterateEnglishToHindi(fatherName))}
+                  className="text-2xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 transition cursor-pointer"
+                >
+                  ✨ हिंदी में बदलें
+                </button>
+              )}
+            </div>
             <input
               type="text"
               id="add-contact-father-name-input"
               value={fatherName}
               onChange={(e) => setFatherName(e.target.value)}
-              placeholder="उदा. श्री हरिलाल यादव"
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-medium focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 outline-none transition-all"
+              placeholder="उदा. पुंजाजी यादव"
+              className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-slate-900 text-sm font-medium focus:bg-white outline-none transition-all ${
+                hasEnglishLetters(fatherName)
+                  ? 'border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-400/20'
+                  : 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20'
+              }`}
             />
+            {hasEnglishLetters(fatherName) && (
+              <p className="text-2xs text-rose-600 font-bold mt-1">
+                ⚠️ पिता का नाम भी केवल हिंदी (देवनागरी) में मान्य है!
+              </p>
+            )}
           </div>
 
           {/* Mobile Number with WhatsApp Verification */}
@@ -409,8 +441,8 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
                 />
               </div>
 
-              {/* OTP Trigger Button (if not verified and not bypassed) */}
-              {!isOtpVerified && !adminBypassOtp && (
+              {/* OTP Trigger Button (only when OTP is mandatory) */}
+              {!isOtpVerified && isOtpMandatory && (
                 <button
                   type="button"
                   id="send-whatsapp-otp-btn"
@@ -453,7 +485,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
             )}
 
             {/* WhatsApp OTP Input Form (When OTP is Sent) */}
-            {otpSent && !isOtpVerified && !adminBypassOtp && (
+            {otpSent && !isOtpVerified && isOtpMandatory && (
               <div className="p-3.5 bg-emerald-50/60 border border-emerald-300 rounded-2xl space-y-2.5 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-extrabold text-emerald-950 flex items-center gap-1.5">

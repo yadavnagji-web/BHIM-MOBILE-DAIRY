@@ -161,7 +161,7 @@ export default function App() {
   // Initial seed check & Realtime Live Sync for automatic instant updates
   useEffect(() => {
     let unsubscribeRealtime: (() => void) | null = null;
-    let initialLoaded = false;
+    let hasAlertedStartup = false;
 
     const setupRealtime = async () => {
       try {
@@ -174,17 +174,19 @@ export default function App() {
         unsubscribeRealtime = subscribeToRealtimeDirectory(
           ({ villages: vList, contacts: cList }) => {
             setVillages(vList);
-            setContacts((prevContacts) => {
-              if (initialLoaded && prevContacts.length > 0 && cList.length > 0) {
-                // Show instant update alert to user if new records arrive
-                setRealtimeUpdateAlert('✨ डायरेक्टरी स्वतः अपडेट हो गई है! (नया डेटा प्राप्त हुआ)');
-                setTimeout(() => setRealtimeUpdateAlert(null), 4500);
-              }
-              return cList;
-            });
-            initialLoaded = true;
+            setContacts(cList);
             setNetworkError(null);
             setLoading(false);
+
+            // Show directory auto-update banner ONLY ONCE when app starts and loads data,
+            // then automatically disappear after 3.5s and NEVER blink or re-appear repeatedly!
+            if (!hasAlertedStartup && cList.length > 0) {
+              hasAlertedStartup = true;
+              setRealtimeUpdateAlert('✨ डायरेक्टरी स्वतः अपडेट हो गई है');
+              setTimeout(() => {
+                setRealtimeUpdateAlert(null);
+              }, 3500);
+            }
           },
           (err) => {
             console.warn('Realtime sync notice (operating in offline/cached mode):', err);
@@ -217,19 +219,43 @@ export default function App() {
     };
   }, []);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setNetworkError(null);
+  // Support direct QR code link scanning for each village (?village=id or ?v=id)
+  useEffect(() => {
     try {
-      await seedInitialDataIfEmpty();
+      const params = new URLSearchParams(window.location.search);
+      const targetParam = params.get('village') || params.get('v') || params.get('villageId');
+      if (targetParam && villages.length > 0) {
+        const found = villages.find(
+          (v) =>
+            v.id.toLowerCase() === targetParam.toLowerCase() ||
+            v.name.toLowerCase() === targetParam.toLowerCase()
+        );
+        if (found) {
+          setSelectedVillageId(found.id);
+          setActiveTab('home');
+          showToast(`📱 QR कोड स्कैन: '${found.name}' गाँव की डायरेक्टरी लोड हो गई!`);
+        } else if (targetParam === 'all') {
+          setSelectedVillageId('all');
+          setActiveTab('home');
+        }
+      }
+    } catch {}
+  }, [villages]);
+
+  // Automatically select initial village so Realtime Database contacts appear immediately on screen!
+  useEffect(() => {
+    if (!selectedVillageId && villages.length > 0) {
+      setSelectedVillageId(villages[0].id);
+    }
+  }, [villages, selectedVillageId]);
+
+  const loadData = useCallback(async () => {
+    try {
       const [vList, cList] = await Promise.all([getVillages(), getContacts()]);
       setVillages(vList);
       setContacts(cList);
     } catch (err: any) {
       console.error('Data load error:', err);
-      setNetworkError('डेटाबेस कनेक्ट नहीं हो सका। कृपया इन्टरनेट कनेक्शन जाँचें।');
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -749,12 +775,17 @@ export default function App() {
           defaultVillageId={selectedVillageId !== 'all' ? selectedVillageId : undefined}
           isAdmin={isAdmin}
           onClose={() => setShowAddModal(false)}
-          onSuccess={() => {
+          onSuccess={(newContact) => {
             setShowAddModal(false);
-            loadData();
-            setTimeout(() => {
-              adService.triggerInterstitial('after_add_contact');
-            }, 500);
+            if (newContact) {
+              setContacts((prev) => {
+                const exists = prev.some((c) => c.id === newContact.id || c.mobile === newContact.mobile);
+                return exists ? prev : [newContact, ...prev];
+              });
+              showToast(`✅ '${newContact.name}' का संपर्क डायरेक्टरी में तुरंत जुड़ गया!`);
+            } else {
+              showToast('✅ नया संपर्क डायरेक्टरी में जुड़ गया!');
+            }
           }}
         />
       )}
@@ -768,9 +799,6 @@ export default function App() {
           onSuccess={() => {
             setCorrectionContact(null);
             showToast('✅ आपका अनुरोध एडमिन को सफलतापूर्वक भेज दिया गया है!');
-            setTimeout(() => {
-              adService.triggerInterstitial('after_correction_request');
-            }, 500);
           }}
         />
       )}
@@ -781,10 +809,14 @@ export default function App() {
           contact={editingContact}
           villages={villages}
           onClose={() => setEditingContact(null)}
-          onSuccess={() => {
+          onSuccess={(updatedContact) => {
             setEditingContact(null);
-            showToast('Contact updated successfully. (संपर्क सफलतापूर्वक अपडेट हुआ)');
-            loadData();
+            if (updatedContact) {
+              setContacts((prev) =>
+                prev.map((c) => (c.id === updatedContact.id ? { ...c, ...updatedContact } : c))
+              );
+            }
+            showToast('संपर्क विवरण सफलतापूर्वक अपडेट हुआ!');
           }}
         />
       )}
@@ -796,9 +828,10 @@ export default function App() {
           isAdmin={isAdmin}
           onClose={() => setDeletingContact(null)}
           onSuccess={() => {
+            const targetId = deletingContact.id;
             setDeletingContact(null);
-            showToast('Contact deleted successfully. (संपर्क सफलतापूर्वक हटाया गया)');
-            loadData();
+            setContacts((prev) => prev.filter((c) => c.id !== targetId));
+            showToast('संपर्क सफलतापूर्वक हटाया गया!');
           }}
         />
       )}

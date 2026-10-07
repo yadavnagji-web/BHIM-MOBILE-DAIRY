@@ -3,12 +3,17 @@ import { Edit2, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Contact, Village } from '../types';
 import { updateContact, isValidIndianMobile, normalizeIndianMobile } from '../services/directoryService';
 import { COMMON_CATEGORIES } from '../services/sampleData';
+import {
+  validateHindiField,
+  hasEnglishLetters,
+  transliterateEnglishToHindi,
+} from '../utils/hindiValidator';
 
 interface EditContactModalProps {
   contact: Contact;
   villages: Village[];
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (updatedContact?: Contact) => void;
 }
 
 export const EditContactModal: React.FC<EditContactModalProps> = ({
@@ -37,9 +42,20 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
     setErrorMessage('');
     setSuccessMessage('');
 
-    if (!name.trim()) {
-      setErrorMessage('कृपया व्यक्ति का नाम दर्ज करें।');
+    // Strict Hindi validation for Name
+    const nameCheck = validateHindiField(name, 'व्यक्ति का नाम', true);
+    if (!nameCheck.valid) {
+      setErrorMessage(nameCheck.error || 'कृपया नाम केवल हिंदी (देवनागरी) में दर्ज करें।');
       return;
+    }
+
+    // Strict Hindi validation for Father's Name (if provided)
+    if (fatherName.trim()) {
+      const fatherCheck = validateHindiField(fatherName, 'पिता का नाम', false);
+      if (!fatherCheck.valid) {
+        setErrorMessage(fatherCheck.error || 'कृपया पिता का नाम केवल हिंदी (देवनागरी) में दर्ज करें।');
+        return;
+      }
     }
 
     const cleanMobile = normalizeIndianMobile(mobile);
@@ -48,29 +64,27 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
       return;
     }
 
-    setLoading(true);
-    try {
-      await updateContact(contact.id, {
-        villageId,
-        villageName: selectedVillage ? selectedVillage.name : contact.villageName,
-        name: name.trim(),
-        fatherName: fatherName.trim(),
-        mobile: cleanMobile,
-        alternateMobile: alternateMobile.trim() ? normalizeIndianMobile(alternateMobile) : '',
-        category: category.trim(),
-        address: address.trim(),
-        remark: remark.trim(),
-      });
+    const updatedData: Contact = {
+      ...contact,
+      villageId,
+      villageName: selectedVillage ? selectedVillage.name : contact.villageName,
+      name: name.trim(),
+      fatherName: fatherName.trim(),
+      mobile: cleanMobile,
+      alternateMobile: alternateMobile.trim() ? normalizeIndianMobile(alternateMobile) : '',
+      category: category.trim(),
+      address: address.trim(),
+      remark: remark.trim(),
+      updatedAt: Date.now(),
+    };
 
-      setSuccessMessage('Contact updated successfully. (संपर्क सफलतापूर्वक अपडेट हुआ)');
-      setTimeout(() => {
-        onSuccess();
-      }, 1000);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'संपर्क अपडेट करने में त्रुटि हुई।');
-    } finally {
-      setLoading(false);
-    }
+    // Instant UI update (0ms)
+    onSuccess(updatedData);
+
+    // Save directly to Realtime Database in background
+    updateContact(contact.id, updatedData).catch((err: any) => {
+      console.warn('Update note:', err);
+    });
   };
 
   return (
@@ -138,33 +152,73 @@ export const EditContactModal: React.FC<EditContactModalProps> = ({
             </select>
           </div>
 
-          {/* Name */}
+          {/* Name (Hindi Only) */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-              नाम <span className="text-rose-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                नाम <span className="text-rose-500">*</span> <span className="text-2xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">केवल हिंदी</span>
+              </label>
+              {hasEnglishLetters(name) && (
+                <button
+                  type="button"
+                  onClick={() => setName(transliterateEnglishToHindi(name))}
+                  className="text-2xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 transition cursor-pointer"
+                >
+                  ✨ हिंदी में बदलें
+                </button>
+              )}
+            </div>
             <input
               type="text"
               id="edit-contact-name-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-medium focus:bg-white focus:border-amber-600 focus:ring-2 focus:ring-amber-600/20 outline-none transition-all"
+              className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-slate-900 text-sm font-medium focus:bg-white outline-none transition-all ${
+                hasEnglishLetters(name)
+                  ? 'border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-400/20'
+                  : 'border-slate-300 focus:border-amber-600 focus:ring-2 focus:ring-amber-600/20'
+              }`}
               required
             />
+            {hasEnglishLetters(name) && (
+              <p className="text-2xs text-rose-600 font-bold mt-1">
+                ⚠️ केवल हिंदी (देवनागरी लिपि) मान्य है! अंग्रेज़ी अक्षर स्वीकार्य नहीं हैं।
+              </p>
+            )}
           </div>
 
-          {/* Father's Name */}
+          {/* Father's Name (Hindi Only) */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-              पिता का नाम <span className="text-slate-400 font-normal">(Father's Name)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                पिता का नाम <span className="text-slate-400 font-normal">(ऐच्छिक)</span> <span className="text-2xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">केवल हिंदी</span>
+              </label>
+              {hasEnglishLetters(fatherName) && (
+                <button
+                  type="button"
+                  onClick={() => setFatherName(transliterateEnglishToHindi(fatherName))}
+                  className="text-2xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 transition cursor-pointer"
+                >
+                  ✨ हिंदी में बदलें
+                </button>
+              )}
+            </div>
             <input
               type="text"
               id="edit-contact-father-name-input"
               value={fatherName}
               onChange={(e) => setFatherName(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-medium focus:bg-white focus:border-amber-600 focus:ring-2 focus:ring-amber-600/20 outline-none transition-all"
+              className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-slate-900 text-sm font-medium focus:bg-white outline-none transition-all ${
+                hasEnglishLetters(fatherName)
+                  ? 'border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-400/20'
+                  : 'border-slate-300 focus:border-amber-600 focus:ring-2 focus:ring-amber-600/20'
+              }`}
             />
+            {hasEnglishLetters(fatherName) && (
+              <p className="text-2xs text-rose-600 font-bold mt-1">
+                ⚠️ पिता का नाम भी केवल हिंदी (देवनागरी) में मान्य है!
+              </p>
+            )}
           </div>
 
           {/* Mobile Numbers */}

@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
-import { Layers, Plus, Edit2, Trash2, X, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { Layers, Plus, Edit2, Trash2, X, Check, AlertCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { Village } from '../types';
-import { createVillage, updateVillage, deleteVillage, getVillageContactsCount } from '../services/directoryService';
+import { createVillage, updateVillage, deleteVillage, bulkDeleteVillages, getVillageContactsCount } from '../services/directoryService';
+import {
+  validateHindiField,
+  hasEnglishLetters,
+  transliterateEnglishToHindi
+} from '../utils/hindiValidator';
 
 interface VillageManagerProps {
   villages: Village[];
@@ -19,6 +24,7 @@ export const VillageManager: React.FC<VillageManagerProps> = ({
   const [editName, setEditName] = useState('');
   const [deletingVillage, setDeletingVillage] = useState<Village | null>(null);
   const [deleteCount, setDeleteCount] = useState<number | null>(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +34,12 @@ export const VillageManager: React.FC<VillageManagerProps> = ({
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (!newVillageName.trim()) return;
+    
+    const val = validateHindiField(newVillageName, 'गाँव का नाम', true);
+    if (!val.valid) {
+      setError(val.error || 'गाँव का नाम केवल हिंदी (देवनागरी लिपि) में मान्य है!');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -52,6 +63,13 @@ export const VillageManager: React.FC<VillageManagerProps> = ({
 
   const handleSaveRename = async (id: string) => {
     if (!editName.trim()) return;
+
+    const val = validateHindiField(editName, 'गाँव का नाम', true);
+    if (!val.valid) {
+      setError(val.error || 'गाँव का नाम केवल हिंदी (देवनागरी लिपि) में मान्य है!');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -90,6 +108,21 @@ export const VillageManager: React.FC<VillageManagerProps> = ({
       setSuccess(`गाँव "${deletingVillage.name}" सफलतापूर्वक हटाया गया।`);
       setDeletingVillage(null);
       setDeleteCount(null);
+      onRefresh();
+    } catch (err: any) {
+      setError(err.message || 'गाँव हटाने में त्रुटि।');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const count = await bulkDeleteVillages();
+      setSuccess(`सभी ${count} गाँव और उनसे जुड़े संपर्क सफलतापूर्वक हटा दिए गए।`);
+      setShowBulkDeleteConfirm(false);
       onRefresh();
     } catch (err: any) {
       setError(err.message || 'गाँव हटाने में त्रुटि।');
@@ -169,11 +202,25 @@ export const VillageManager: React.FC<VillageManagerProps> = ({
 
           {/* Village List */}
           <div className="space-y-2">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              विद्यमान गाँव सूची
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                विद्यमान गाँव सूची ({villages.length})
+              </h3>
+              {villages.length > 0 && (
+                <button
+                  type="button"
+                  id="bulk-delete-villages-btn"
+                  onClick={() => setShowBulkDeleteConfirm(true)}
+                  disabled={loading}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>सभी गाँव हटाएँ (Bulk Delete)</span>
+                </button>
+              )}
+            </div>
             {villages.length === 0 ? (
-              <p className="text-sm text-slate-400 py-4 text-center">कोई गाँव नहीं मिला।</p>
+              <p className="text-sm text-slate-400 py-4 text-center">कोई गाँव नहीं मिला। नया गाँव जोड़ने के लिए ऊपर फॉर्म का उपयोग करें।</p>
             ) : (
               <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
                 {villages.map((v) => {
@@ -244,7 +291,53 @@ export const VillageManager: React.FC<VillageManagerProps> = ({
           </div>
         </div>
 
-        {/* Delete Confirmation Modal for Village */}
+        {/* Bulk Delete Confirmation Modal */}
+        {showBulkDeleteConfirm && (
+          <div className="p-4 bg-rose-50 border-t border-rose-300 rounded-b-2xl animate-in fade-in">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-rose-950">
+                  ⚠️ सभी {villages.length} गाँव एक साथ हटाने की पुष्टि
+                </h4>
+                <p className="text-xs text-rose-800 mt-1 leading-relaxed">
+                  क्या आप निश्चित हैं? सभी गाँव और उनसे जुड़े संपर्क डेटाबेस से पूरी तरह हटा दिए जाएँगे। इसके बाद कोई भी गाँव अपने आप वापस नहीं आएगा।
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2.5 mt-3.5">
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                disabled={loading}
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                id="confirm-bulk-delete-btn"
+                onClick={handleConfirmBulkDelete}
+                disabled={loading}
+                className="px-4 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>हटा रहे हैं...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>हाँ, सभी गाँव हटाएँ (Bulk Delete)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal for Single Village */}
         {deletingVillage && (
           <div className="p-4 bg-rose-50 border-t border-rose-200 rounded-b-2xl">
             <h4 className="text-sm font-bold text-rose-900">

@@ -24,6 +24,29 @@ const FAST2SMS_API_KEY =
 const FAST2SMS_OTP_ID = process.env.FAST2SMS_OTP_ID || 'e39f1cf3ff';
 
 const DB_FILE = path.resolve(__dirname, 'data', 'directory_db.json');
+const RTDB_BASE = 'https://bhim-dairy-default-rtdb.firebaseio.com';
+
+async function rtdbPut(pathStr: string, data: any) {
+  try {
+    await fetch(`${RTDB_BASE}/${pathStr}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  } catch (e) {
+    console.warn('RTDB sync warning:', e);
+  }
+}
+
+async function rtdbDelete(pathStr: string) {
+  try {
+    await fetch(`${RTDB_BASE}/${pathStr}.json`, {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    console.warn('RTDB delete warning:', e);
+  }
+}
 
 // Ensure DB exists with clean data
 function readDb() {
@@ -136,6 +159,7 @@ app.post('/api/contacts', (req, res) => {
   db.contacts = db.contacts || [];
   db.contacts.unshift(newContact);
   writeDb(db);
+  rtdbPut(`contacts/${id}`, newContact);
 
   res.json({ success: true, contact: newContact });
 });
@@ -156,6 +180,7 @@ app.put('/api/contacts/:id', (req, res) => {
     updatedAt: Date.now()
   };
   writeDb(db);
+  rtdbPut(`contacts/${id}`, db.contacts[idx]);
 
   res.json({ success: true, contact: db.contacts[idx] });
 });
@@ -166,6 +191,7 @@ app.delete('/api/contacts/:id', (req, res) => {
 
   db.contacts = (db.contacts || []).filter((c: any) => c.id !== id);
   writeDb(db);
+  rtdbDelete(`contacts/${id}`);
 
   res.json({ success: true, message: 'संपर्क हटा दिया गया।' });
 });
@@ -191,6 +217,7 @@ app.post('/api/villages', (req, res) => {
 
   db.villages.push(newVillage);
   writeDb(db);
+  rtdbPut(`villages/${id}`, newVillage);
 
   res.json({ success: true, village: newVillage });
 });
@@ -207,9 +234,11 @@ app.put('/api/villages/:id', (req, res) => {
     (db.contacts || []).forEach((c: any) => {
       if (c.villageId === id) {
         c.villageName = name.trim();
+        rtdbPut(`contacts/${c.id}/villageName`, name.trim());
       }
     });
     writeDb(db);
+    rtdbPut(`villages/${id}`, db.villages[idx]);
     return res.json({ success: true, village: db.villages[idx] });
   }
 
@@ -222,6 +251,7 @@ app.delete('/api/villages/:id', (req, res) => {
 
   db.villages = (db.villages || []).filter((v: any) => v.id !== id);
   writeDb(db);
+  rtdbDelete(`villages/${id}`);
 
   res.json({ success: true, message: 'गाँव हटा दिया गया।' });
 });
@@ -513,6 +543,60 @@ async function startServer() {
       appType: 'spa'
     });
 
+    // In AI Studio preview environment: HMR is disabled per environment constraints.
+    // Intercept /@vite/client to avoid failing WebSocket connection errors while providing CSS injection methods.
+    app.get(['/@vite/client', '*/@vite/client'], (_req, res) => {
+      res.setHeader('Content-Type', 'application/javascript');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.end(`// HMR disabled in AI Studio preview iframe per environment constraints
+const sheetsMap = new Map();
+
+export function updateStyle(id, content) {
+  let style = sheetsMap.get(id);
+  if (!style) {
+    style = document.createElement('style');
+    style.setAttribute('type', 'text/css');
+    style.setAttribute('data-vite-dev-id', id);
+    style.textContent = content;
+    document.head.appendChild(style);
+  } else {
+    style.textContent = content;
+  }
+  sheetsMap.set(id, style);
+}
+
+export function removeStyle(id) {
+  const style = sheetsMap.get(id);
+  if (style) {
+    style.remove();
+    sheetsMap.delete(id);
+  }
+}
+
+export const createHotContext = () => ({
+  accept: () => {},
+  prune: () => {},
+  dispose: () => {},
+  decline: () => {},
+  invalidate: () => {},
+  on: () => {},
+  send: () => {},
+});
+
+export const injectQuery = (url) => url;
+
+export class ErrorOverlay extends (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) {}
+
+export default {
+  updateStyle,
+  removeStyle,
+  createHotContext,
+  injectQuery,
+  ErrorOverlay,
+};
+`);
+    });
+
     app.use(vite.middlewares);
 
     app.use('*', async (req, res, next) => {
@@ -523,6 +607,30 @@ async function startServer() {
         const url = req.originalUrl;
         let template = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf-8');
         template = await vite.transformIndexHtml(url, template);
+        // Inject global suppression script as the very first element in <head>
+        template = template.replace('<head>', `<head><script>
+          (function() {
+            var suppress = function(e) {
+              var msg = (e && (e.message || e.reason || e.error?.message || e)) + '';
+              if (msg.indexOf('[vite]') !== -1 || msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite-hmr') !== -1) {
+                if (e && e.preventDefault) e.preventDefault();
+                if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+                return true;
+              }
+              return false;
+            };
+            window.addEventListener('error', suppress, true);
+            window.addEventListener('unhandledrejection', suppress, true);
+            ['error', 'warn', 'info', 'debug', 'log'].forEach(function(m) {
+              var orig = console[m];
+              console[m] = function() {
+                var first = (arguments[0] || '') + '';
+                if (first.indexOf('[vite]') !== -1 || first.indexOf('WebSocket') !== -1 || first.indexOf('vite-hmr') !== -1) return;
+                orig.apply(console, arguments);
+              };
+            });
+          })();
+        </script>`);
         res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
       } catch (e: any) {
         if (vite.ssrFixStacktrace) {

@@ -111,22 +111,124 @@ export function generateGoogleSheetCsv(contacts: Contact[]): string {
     `"${c.alternateMobile || ''}"`,
     `"${(c.category || '').replace(/"/g, '""')}"`,
     `"${(c.address || '').replace(/"/g, '""')}"`,
-    `"${c.remark || 'सत्यापित'}"`
+    `"${(c.remark || 'सत्यापित').replace(/"/g, '""')}"`
   ]);
 
-  return '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  // Return clean RFC 4180 CSV with CRLF line breaks (BOM added during Blob download)
+  return [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
 }
 
 /**
- * Downloads the ready-to-import CSV file for yadavnagji@gmail.com
+ * Downloads the ready-to-import CSV file with UTF-8 BOM so Hindi/Devanagari text displays properly in Excel & Sheets
  */
 export function downloadGoogleSheetCsv(contacts: Contact[]): void {
   const csvContent = generateGoogleSheetCsv(contacts);
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  // Add single UTF-8 BOM (0xEF, 0xBB, 0xBF) so Excel & Sheets open Hindi/Devanagari text accurately
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;'
+  });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
   link.setAttribute('download', `YADAV_SAMAJ_MOBILE_DAIRY_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Creates HTML Excel formatted table with UTF-8 encoding for direct MS Excel opening without language issues
+ */
+export function generateExcelHtmlTable(contacts: Contact[]): string {
+  const escapeHtml = (str: string | undefined | null) =>
+    (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const rows = contacts
+    .map(
+      (c, i) => `
+    <tr>
+      <td style="text-align: center; mso-number-format:'\\@';">${i + 1}</td>
+      <td style="font-weight: 600; mso-number-format:'\\@';">${escapeHtml(c.name)}</td>
+      <td style="mso-number-format:'\\@';">${escapeHtml(c.fatherName)}</td>
+      <td style="mso-number-format:'\\@';">${escapeHtml(c.villageName)}</td>
+      <td style="mso-number-format:'\\@'; color: #0284c7; font-weight: 600;">${escapeHtml(c.mobile)}</td>
+      <td style="mso-number-format:'\\@';">${escapeHtml(c.alternateMobile)}</td>
+      <td style="mso-number-format:'\\@';">${escapeHtml(c.category)}</td>
+      <td style="mso-number-format:'\\@';">${escapeHtml(c.address)}</td>
+      <td style="mso-number-format:'\\@';">${escapeHtml(c.remark || 'सत्यापित')}</td>
+    </tr>`
+    )
+    .join('');
+
+  return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <!--[if gte mso 9]>
+  <xml>
+    <x:ExcelWorkbook>
+      <x:ExcelWorksheets>
+        <x:ExcelWorksheet>
+          <x:Name>यादव समाज डायरेक्टरी</x:Name>
+          <x:WorksheetOptions>
+            <x:DisplayGridlines/>
+          </x:WorksheetOptions>
+        </x:ExcelWorksheet>
+      </x:ExcelWorksheets>
+    </x:ExcelWorkbook>
+  </xml>
+  <![endif]-->
+  <style>
+    body { font-family: 'Segoe UI', Nirmala UI, Mangal, Arial, sans-serif; }
+    table { border-collapse: collapse; width: 100%; }
+    th { background-color: #1e3a8a; color: #ffffff; font-weight: bold; padding: 10px; border: 1px solid #94a3b8; text-align: left; }
+    td { padding: 8px 10px; border: 1px solid #cbd5e1; font-size: 13px; mso-number-format:"\\@"; }
+    tr:nth-child(even) td { background-color: #f8fafc; }
+  </style>
+</head>
+<body>
+  <h2>यादव समाज मोबाइल डायरी (YADAV SAMAJ MOBILE DAIRY)</h2>
+  <p>कुल संपर्क: ${contacts.length} | दिनांक: ${new Date().toLocaleDateString('hi-IN')}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>क्र.सं. (S.No.)</th>
+        <th>नाम (Name)</th>
+        <th>पिता/पति का नाम (Father Name)</th>
+        <th>गाँव (Village)</th>
+        <th>मोबाइल नंबर (Mobile)</th>
+        <th>वैकल्पिक नंबर (Alt Mobile)</th>
+        <th>व्यवसाय (Category)</th>
+        <th>पता / मोहल्ला (Address)</th>
+        <th>टिप्पणी / स्थिति (Status)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * Downloads directly as an Excel (.xls) file with UTF-8 encoding and clean Hindi/Devanagari rendering
+ */
+export function downloadExcelSpreadsheet(contacts: Contact[]): void {
+  const htmlTable = generateExcelHtmlTable(contacts);
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), htmlTable], {
+    type: 'application/vnd.ms-excel;charset=utf-8;'
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `YADAV_SAMAJ_MOBILE_DAIRY_${new Date().toISOString().split('T')[0]}.xls`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

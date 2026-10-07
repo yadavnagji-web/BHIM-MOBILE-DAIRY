@@ -22,6 +22,7 @@ import {
   TARGET_GOOGLE_ACCOUNT,
   DEFAULT_SHEET_TITLE,
   downloadGoogleSheetCsv,
+  downloadExcelSpreadsheet,
   generateGoogleSheetCsv,
   generateGoogleSheetTsv,
   getGoogleSheetCreateUrl,
@@ -67,14 +68,22 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
 
   const handleSaveSheetUrl = () => {
     const config = getStoredSheetConfig();
-    config.spreadsheetUrl = sheetUrl.trim();
-    // Assuming the ID is part of the URL or the user provides just the ID. 
-    // If the user provided the ID directly, we need to extract/save it.
-    // Based on the user request, '15zvUKpetFHhjoWu4kPznaydWzLRtXEFf6NGEzCmKyU8' is the ID.
-    config.spreadsheetId = '15zvUKpetFHhjoWu4kPznaydWzLRtXEFf6NGEzCmKyU8'; 
+    const trimmed = sheetUrl.trim();
+    config.spreadsheetUrl = trimmed;
+
+    // Extract ID from full URL like https://docs.google.com/spreadsheets/d/15zvUKpetFHhjoWu4kPznaydWzLRtXEFf6NGEzCmKyU8/edit
+    const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (match && match[1]) {
+      config.spreadsheetId = match[1];
+    } else if (trimmed && !trimmed.includes('/')) {
+      config.spreadsheetId = trimmed;
+    } else {
+      config.spreadsheetId = '15zvUKpetFHhjoWu4kPznaydWzLRtXEFf6NGEzCmKyU8';
+    }
+
     saveStoredSheetConfig(config);
     setSavedUrlToast(true);
-    showToast('Google Sheet ID सफलतापूर्वक सहेज ली गई है!');
+    showToast(`Google Sheet ID (${config.spreadsheetId}) सफलतापूर्वक सहेज ली गई है!`);
     setTimeout(() => setSavedUrlToast(false), 3000);
   };
 
@@ -100,23 +109,36 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
 
   const handleDownloadCsv = () => {
     downloadGoogleSheetCsv(contacts);
-    showToast(`'${DEFAULT_SHEET_TITLE}' CSV फ़ाइल डाउनलोड हो गई!`);
+    showToast(`'${DEFAULT_SHEET_TITLE}' CSV फ़ाइल डाउनलोड हो गई (शुद्ध UTF-8 समर्थित)!`);
+  };
+
+  const handleDownloadExcel = () => {
+    downloadExcelSpreadsheet(contacts);
+    showToast(`'${DEFAULT_SHEET_TITLE}' Excel (.xls) फ़ाइल डाउनलोड हो गई!`);
   };
 
   const handleLiveSync = async () => {
     setImporting(true);
     try {
       const config = getStoredSheetConfig();
-      const targetId = config.spreadsheetId || '15zvUKpetFHhjoWu4kPznaydWzLRtXEFf6NGEzCmKyU8';
-      
+      let targetId = config.spreadsheetId;
+      if (!targetId && config.spreadsheetUrl) {
+        const match = config.spreadsheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (match && match[1]) targetId = match[1];
+      }
+      if (!targetId) {
+        targetId = '15zvUKpetFHhjoWu4kPznaydWzLRtXEFf6NGEzCmKyU8';
+      }
+
       let accessToken = await getAccessToken();
       if (!accessToken) {
         showToast('गूगल खाते से जुड़ रहे हैं...');
         accessToken = await googleSignIn();
       }
-      
+
       if (!accessToken) {
-        showToast('त्रुटि: गूगल एक्सेस टोकन प्राप्त नहीं हुआ।');
+        handleCopyTsvData();
+        showToast('गूगल लॉगिन नहीं हुआ। डेटा क्लिपबोर्ड में कॉपी हो गया है, शीट में Ctrl+V पेस्ट करें!');
         return;
       }
 
@@ -124,7 +146,8 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       showToast('🎉 सफलता! रियल-टाइम डेटा Google Sheet में लाइव अपडेट हो गया!');
     } catch (err: any) {
       console.error(err);
-      showToast(`त्रुटि: ${err.message || 'सिंक विफल रहा'}`);
+      handleCopyTsvData();
+      showToast(`डेटा कॉपी हो गया है! Google Sheet में जाकर सीधे Ctrl + V (Paste) करें।`);
     } finally {
       setImporting(false);
     }
@@ -324,23 +347,37 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
             </button>
           </div>
 
-          {/* Action 3: DOWNLOAD CSV FILE */}
+          {/* Action 3: DOWNLOAD CSV / EXCEL FILE */}
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
             <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
               <Download className="w-4 h-4 text-slate-700" />
-              <span>3. 'YADAV SAMAJ MOBILE DAIRY' CSV फ़ाइल डाउनलोड करें</span>
+              <span>3. 'YADAV SAMAJ MOBILE DAIRY' डेटा डाउनलोड करें</span>
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              यदि आप एक्सेल / गूगल ड्राइव में फ़ाइल अपलोड करके सुरक्षित रखना चाहते हैं:
+              शुद्ध हिंदी / देवनागरी भाषा में एक्सेल या गूगल ड्राइव में सुरक्षित रखने के लिए फ़ाइल डाउनलोड करें:
             </p>
-            <button
-              type="button"
-              onClick={handleDownloadCsv}
-              className="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-900 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
-            >
-              <Download className="w-4 h-4" />
-              <span>CSV फ़ाइल डाउनलोड करें (.csv)</span>
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleDownloadExcel}
+                className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Excel फ़ाइल (.xls - हिंदी)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadCsv}
+                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-900 active:scale-98 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>CSV फ़ाइल (.csv - UTF-8)</span>
+              </button>
+            </div>
+            <p className="text-2xs text-slate-500">
+              ✓ UTF-8 समर्थित - Excel व Google Sheets में नाम व पता बिना किसी भाषा गड़बड़ी के खुलेंगे।
+            </p>
           </div>
 
           {/* Action 4: SAVE CUSTOM SHEET LINK */}

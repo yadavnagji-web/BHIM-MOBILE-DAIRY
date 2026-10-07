@@ -6,14 +6,25 @@
     <script>
       // Gracefully ignore WebSocket & Vite HMR logs in preview iframe (per environment constraints: "HMR: Disabled. Ignore WebSocket errors")
       (function() {
-        var origError = console.error;
-        console.error = function() {
-          var first = arguments[0];
-          if (typeof first === 'string' && (first.indexOf('[vite]') !== -1 || first.indexOf('WebSocket') !== -1 || first.indexOf('vite-hmr') !== -1)) {
-            return;
+        var suppress = function(e) {
+          var msg = (e && (e.message || e.reason || e.error?.message || e)) + '';
+          if (msg.indexOf('[vite]') !== -1 || msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite-hmr') !== -1) {
+            if (e && e.preventDefault) e.preventDefault();
+            if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+            return true;
           }
-          origError.apply(console, arguments);
+          return false;
         };
+        window.addEventListener('error', suppress, true);
+        window.addEventListener('unhandledrejection', suppress, true);
+        ['error', 'warn', 'info', 'debug', 'log'].forEach(function(m) {
+          var orig = console[m];
+          console[m] = function() {
+            var first = (arguments[0] || '') + '';
+            if (first.indexOf('[vite]') !== -1 || first.indexOf('WebSocket') !== -1 || first.indexOf('vite-hmr') !== -1) return;
+            orig.apply(console, arguments);
+          };
+        });
       })();
     </script>
     <title>Mobile Directory - यादव समाज मोबाइल डायरेक्टरी (Yadav Samaj Mobile Directory)</title>

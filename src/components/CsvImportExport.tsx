@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, X, Loader2, Info } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, X, Loader2, Info, Table } from 'lucide-react';
 import { Contact, Village, CsvImportResult } from '../types';
 import { exportContactsToCsv, importContactsFromCsv } from '../services/directoryService';
+import { downloadExcelSpreadsheet } from '../services/googleSheetsService';
 
 interface CsvImportExportProps {
   contacts: Contact[];
@@ -22,11 +23,12 @@ export const CsvImportExport: React.FC<CsvImportExportProps> = ({
   const [importError, setImportError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleExport = () => {
+  const handleExportCsv = () => {
     const csvData = exportContactsToCsv(contacts);
+    // Single binary UTF-8 BOM byte sequence (0xEF, 0xBB, 0xBF) for correct Hindi rendering in Excel/Sheets
     const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvData], {
       type: 'text/csv;charset=utf-8;',
-    }); // Add UTF-8 BOM so Hindi opens cleanly in Excel
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -37,11 +39,12 @@ export const CsvImportExport: React.FC<CsvImportExportProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const handleExportExcel = () => {
+    downloadExcelSpreadsheet(contacts);
+  };
+
   const handleDownloadSampleCsv = () => {
-    const sample = `Village,Name,Mobile,Alternate Mobile,Category,Address,Remark
-चितरी,रामलाल यादव,9876543210,9876543211,किसान,वार्ड 2,जैविक खेती
-रामपुर,मुकेश कुमार,9829012345,,कृषि मिस्त्री,बस स्टैंड,ट्रैक्टर रिपेयर
-सुंदरपुर,गोपाल दास,9512345678,,ई-मित्र,पंचायत भवन,सरकारी योजनाएं`;
+    const sample = `गाँव,नाम,पिता का नाम,मोबाइल नंबर,वैकल्पिक नंबर,व्यवसाय,पता,टिप्पणी\r\nचितरी,रामलाल यादव,हरिराम यादव,9876543210,9876543211,किसान,वार्ड 2,जैविक खेती\r\nरामपुर,मुकेश कुमार,मोहनलाल यादव,9829012345,,कृषि मिस्त्री,बस स्टैंड,ट्रैक्टर रिपेयर\r\nसुंदरपुर,गोपाल दास,किशनलाल यादव,9512345678,,ई-मित्र,पंचायत भवन,सरकारी योजनाएं`;
 
     const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), sample], {
       type: 'text/csv;charset=utf-8;',
@@ -143,30 +146,55 @@ export const CsvImportExport: React.FC<CsvImportExportProps> = ({
               <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2">
                 <h3 className="text-sm font-bold text-emerald-950 flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  Excel / CSV फ़ाइल डाउनलोड के लिए तैयार
+                  Excel / CSV फ़ाइल डाउनलोड (100% शुद्ध हिंदी / देवनागरी भाषा में)
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
                   डायरेक्टरी में उपलब्ध कुल <strong>{contacts.length}</strong> संपर्कों का सम्पूर्ण विवरण
-                  (गाँव, नाम, मोबाइल, पता, श्रेणी आदि) एक ही क्लिक में UTF-8 समर्थित CSV फ़ाइल में एक्सपोर्ट करें।
+                  (गाँव, नाम, पिता का नाम, मोबाइल, पता आदि) बिना किसी भाषा खराबी (encoding error) के सीधे डाउनलोड करें।
                 </p>
+                <div className="flex flex-wrap gap-2 pt-1 text-2xs">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold">
+                    ✓ UTF-8 BOM समर्थित
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 font-bold">
+                    ✓ Excel व Google Sheets में शुद्ध हिंदी
+                  </span>
+                </div>
               </div>
 
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
                 <p className="font-semibold text-slate-800">शामिल कॉलम:</p>
                 <code className="text-2xs bg-white px-2 py-1 rounded border border-slate-200 block text-slate-700">
-                  Village, Name, Mobile, Alternate Mobile, Category, Address, Remark
+                  गाँव, नाम, पिता का नाम, मोबाइल नंबर, वैकल्पिक नंबर, व्यवसाय, पता, टिप्पणी
                 </code>
               </div>
 
-              <button
-                type="button"
-                id="download-contacts-csv-btn"
-                onClick={handleExport}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-emerald-700/20 transition-all"
-              >
-                <Download className="w-4 h-4" />
-                <span>सभी {contacts.length} संपर्क एक्सपोर्ट करें (.CSV)</span>
-              </button>
+              {/* Two Download Options: Excel and CSV */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <button
+                  type="button"
+                  id="download-contacts-excel-btn"
+                  onClick={handleExportExcel}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-blue-700/20 transition-all cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Excel फ़ाइल (.XLS)</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="download-contacts-csv-btn"
+                  onClick={handleExportCsv}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-emerald-700/20 transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>CSV फ़ाइल (.CSV)</span>
+                </button>
+              </div>
+
+              <p className="text-2xs text-slate-500 text-center">
+                * यदि आपके कंप्यूटर के Excel में फ़ाइल खोलने पर भाषा नहीं दिखती है, तो <strong>Excel फ़ाइल (.XLS)</strong> बटन पर क्लिक करें।
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
