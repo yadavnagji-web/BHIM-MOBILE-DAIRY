@@ -40,7 +40,7 @@ export const HelpView: React.FC<HelpViewProps> = ({
   const contactVillage = 'SAKODARA';
   const contactPhone = '9982151938';
   const whatsappUrl = `https://wa.me/91${contactPhone}?text=${encodeURIComponent(
-    'Jai Bhim / Hello Nagji Yadav ji, I need assistance regarding the Bhim Directory.'
+    'Jai Yadav / Hello Nagji Yadav ji, I need assistance regarding the Yadav Samaj Mobile Directory.'
   )}`;
 
   const handleCopyPhone = () => {
@@ -67,7 +67,7 @@ export const HelpView: React.FC<HelpViewProps> = ({
               किसी भी सहायता हेतु संपर्क करें
             </h2>
             <p className="text-xs sm:text-sm text-blue-200 font-medium max-w-xl leading-relaxed">
-              भीम डायरेक्टरी में नया नंबर जुड़वाने, किसी गलत नंबर में सुधार करवाने, गाँव जोड़ने या ऐप के उपयोग में किसी भी समस्या के लिए आप नीचे दिए गए नंबर पर निसंकोच संपर्क कर सकते हैं।
+              यादव समाज मोबाइल डायरेक्टरी में नया नंबर जुड़वाने, किसी गलत नंबर में सुधार करवाने, गाँव जोड़ने या ऐप के उपयोग में किसी भी समस्या के लिए आप नीचे दिए गए नंबर पर निसंकोच संपर्क कर सकते हैं।
             </p>
           </div>
         </div>
@@ -226,7 +226,7 @@ export const HelpView: React.FC<HelpViewProps> = ({
                 <span>📱 1-CLICK MOBILE APP</span>
               </div>
               <h3 className="text-base sm:text-lg font-black text-white">
-                भीम डायरेक्टरी को मोबाइल में इंस्टॉल करें
+                यादव समाज मोबाइल डायरेक्टरी को मोबाइल में इंस्टॉल करें
               </h3>
               <p className="text-xs text-blue-200 mt-0.5">
                 सीधे फोन स्क्रीन पर आइकन बन जाएगा। बिना ब्राउज़र तुरंत खुलेगा और ऑफ़लाइन भी चलेगा।
@@ -330,7 +330,7 @@ export const HelpView: React.FC<HelpViewProps> = ({
           डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी
         </p>
         <p className="text-2xs text-slate-400">
-          भीम डायरेक्टरी - समाज को जोड़ने और संगठित करने का डिजिटल मंच
+          यादव समाज मोबाइल डायरेक्टरी - समाज को जोड़ने और संगठित करने का डिजिटल मंच
         </p>
       </div>
     </div>

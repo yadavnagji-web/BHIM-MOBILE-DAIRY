@@ -1,0 +1,17 @@
+{
+  "villages": [],
+  "contacts": [],
+  "approvalRequests": [],
+  "settings": {
+    "otpMode": "without_otp",
+    "adsMasterEnabled": true,
+    "bannerAdEnabled": true,
+    "interstitialAdEnabled": true,
+    "bannerAdUnit": "ca-app-pub-6423718618240244/6735134164",
+    "interstitialAdUnit": "ca-app-pub-6423718618240244/1291235796",
+    "sponsorTitle": "डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी",
+    "sponsorContact": "9982151938",
+    "googleSheetEmail": "yadavnagji@gmail.com",
+    "googleSheetName": "YADAV SAMAJ MOBILE DAIRY"
+  }
+}

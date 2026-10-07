@@ -1,84 +1,63 @@
+import { Village, Contact, CsvImportResult, ApprovalRequest } from '../types';
+import { db, contactsCol, villagesCol, approvalsCol, settingsCol } from './firebaseService';
+import { INITIAL_VILLAGES } from './sampleData';
 import {
-  collection,
-  doc,
   getDocs,
   getDoc,
-  addDoc,
+  doc,
   setDoc,
+  addDoc,
   updateDoc,
   deleteDoc,
+  onSnapshot,
   query,
   where,
   orderBy,
-  limit,
-  writeBatch,
-  onSnapshot
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Village, Contact, CsvImportResult, ApprovalRequest } from '../types';
-import { INITIAL_VILLAGES, INITIAL_CONTACTS } from './sampleData';
-import {
-  getStoredSheetConfig,
-  getCachedSheetToken,
-  appendContactToGoogleSheet
-} from './googleSheetsService';
 
-const VILLAGES_COLLECTION = 'villages';
-const CONTACTS_COLLECTION = 'contacts';
-export const APPROVAL_REQUESTS_COLLECTION = 'approval_requests';
-
-const VILLAGES_CACHE_KEY = 'bhim_directory_cached_villages';
-const CONTACTS_CACHE_KEY = 'bhim_directory_cached_contacts';
-
-function getLocalCachedVillages(): Village[] {
-  try {
-    const raw = localStorage.getItem(VILLAGES_CACHE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.warn('Error reading cached villages:', e);
-  }
-  return INITIAL_VILLAGES.map((v) => ({ ...v, createdAt: 0 }));
+export interface AppSettings {
+  otpMode: 'with_otp' | 'without_otp';
+  adsMasterEnabled: boolean;
+  bannerAdEnabled: boolean;
+  interstitialAdEnabled: boolean;
+  bannerAdUnit: string;
+  interstitialAdUnit: string;
+  sponsorTitle?: string;
+  sponsorContact?: string;
+  sponsorTagline?: string;
+  sponsorAdEnabled?: boolean;
+  bannerImageUrl?: string;
+  bannerTargetUrl?: string;
+  interstitialImageUrl?: string;
+  interstitialTargetUrl?: string;
+  googleSheetEmail?: string;
+  googleSheetName?: string;
 }
 
-function setLocalCachedVillages(villages: Village[]): void {
-  try {
-    if (villages && villages.length > 0) {
-      localStorage.setItem(VILLAGES_CACHE_KEY, JSON.stringify(villages));
-    }
-  } catch (e) {
-    console.warn('Error saving cached villages:', e);
-  }
-}
+const DEFAULT_SETTINGS: AppSettings = {
+  otpMode: 'with_otp',
+  adsMasterEnabled: true,
+  bannerAdEnabled: true,
+  interstitialAdEnabled: true,
+  bannerAdUnit: 'ca-app-pub-6423718618240244/6735134164',
+  interstitialAdUnit: 'ca-app-pub-6423718618240244/1291235796',
+  sponsorTitle: 'डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी',
+  sponsorContact: '9982151938',
+  sponsorTagline: 'ग्राम अनुसार मोबाइल डायरेक्टरी',
+  sponsorAdEnabled: true,
+  bannerImageUrl: '',
+  bannerTargetUrl: '',
+  interstitialImageUrl: '',
+  interstitialTargetUrl: '',
+  googleSheetEmail: 'yadavnagji@gmail.com',
+  googleSheetName: 'YADAV SAMAJ MOBILE DAIRY',
+};
 
-function getLocalCachedContacts(): Contact[] {
-  try {
-    const raw = localStorage.getItem(CONTACTS_CACHE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.warn('Error reading cached contacts:', e);
-  }
-  return INITIAL_CONTACTS.map((c, i) => ({
-    ...c,
-    id: `initial_${i}`,
-    status: 'approved' as const,
-    createdAt: 0,
-    updatedAt: 0,
-  }));
-}
-
-function setLocalCachedContacts(contacts: Contact[]): void {
-  try {
-    if (contacts && contacts.length > 0) {
-      localStorage.setItem(CONTACTS_CACHE_KEY, JSON.stringify(contacts));
-    }
-  } catch (e) {
-    console.warn('Error saving cached contacts:', e);
-  }
-}
-
-/**
- * Normalizes Indian phone number to 10 digits
- */
+// -------------------------------------------------------------
+// MOBILE NUMBER HELPERS
+// -------------------------------------------------------------
 export function normalizeIndianMobile(raw: string): string {
   if (!raw) return '';
   let cleaned = raw.replace(/\D/g, '');
@@ -90,537 +69,32 @@ export function normalizeIndianMobile(raw: string): string {
   return cleaned;
 }
 
-/**
- * Validates 10 digit Indian mobile number starting with 6, 7, 8, or 9
- */
 export function isValidIndianMobile(raw: string): boolean {
   const norm = normalizeIndianMobile(raw);
   return /^[6-9]\d{9}$/.test(norm);
 }
 
-/**
- * Initialize default villages and contacts if database is empty
- */
-export async function seedInitialDataIfEmpty(): Promise<boolean> {
-  try {
-    const vSnap = await getDocs(query(collection(db, VILLAGES_COLLECTION), limit(1)));
-    if (!vSnap.empty) {
-      return false; // Already has data
-    }
+// -------------------------------------------------------------
+// REALTIME LISTENERS
+// -------------------------------------------------------------
+export function subscribeToRealtimeDirectory(
+  onUpdate: (data: { contacts: Contact[]; villages: Village[] }) => void,
+  onError?: (err: any) => void
+) {
+  let contacts: Contact[] = [];
+  let villages: Village[] = [];
 
-    const batch = writeBatch(db);
-
-    // Seed villages
-    for (const v of INITIAL_VILLAGES) {
-      const vRef = doc(db, VILLAGES_COLLECTION, v.id);
-      batch.set(vRef, {
-        name: v.name,
-        createdAt: Date.now(),
-      });
-    }
-
-    // Seed contacts
-    for (const c of INITIAL_CONTACTS) {
-      const cRef = doc(collection(db, CONTACTS_COLLECTION));
-      batch.set(cRef, {
-        ...c,
-        mobile: normalizeIndianMobile(c.mobile),
-        alternateMobile: c.alternateMobile ? normalizeIndianMobile(c.alternateMobile) : '',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-    }
-
-    await batch.commit();
-    return true;
-  } catch (error) {
-    console.warn('Auto-seed bypassed or rules restricted:', error);
-    return false;
-  }
-}
-
-/**
- * Fetch all villages sorted alphabetically
- */
-export async function getVillages(): Promise<Village[]> {
-  try {
-    const snapshot = await getDocs(collection(db, VILLAGES_COLLECTION));
-    const list: Village[] = [];
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      list.push({
-        id: docSnap.id,
-        name: data.name || '',
-        createdAt: data.createdAt || 0,
-      });
-    });
-
-    list.sort((a, b) => a.name.localeCompare(b.name, 'hi'));
-    if (list.length > 0) {
-      setLocalCachedVillages(list);
-      return list;
-    }
-    return getLocalCachedVillages();
-  } catch (error) {
-    console.warn('Error fetching villages from Firestore, using local cache:', error);
-    return getLocalCachedVillages();
-  }
-}
-
-/**
- * Fetch contacts, optionally filtered by village for high performance
- */
-export async function getContacts(villageId?: string): Promise<Contact[]> {
-  try {
-    let q;
-    if (villageId && villageId !== 'all') {
-      q = query(
-        collection(db, CONTACTS_COLLECTION),
-        where('villageId', '==', villageId)
-      );
-    } else {
-      q = query(collection(db, CONTACTS_COLLECTION), limit(250));
-    }
-
-    const snapshot = await getDocs(q);
-    const list: Contact[] = [];
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (data.status && data.status !== 'approved') {
-        return; // Skip pending or rejected contacts
-      }
-      list.push({
-        id: docSnap.id,
-        villageId: data.villageId || '',
-        villageName: data.villageName || '',
-        name: data.name || '',
-        fatherName: data.fatherName || '',
-        mobile: data.mobile || '',
-        alternateMobile: data.alternateMobile || '',
-        category: data.category || 'सामान्य',
-        address: data.address || '',
-        remark: data.remark || '',
-        status: data.status || 'approved',
-        createdAt: data.createdAt || 0,
-        updatedAt: data.updatedAt || 0,
-      });
-    });
-
-    // Client-side sort by name
-    list.sort((a, b) => a.name.localeCompare(b.name, 'hi'));
-    if (list.length > 0) {
-      if (!villageId || villageId === 'all') {
-        setLocalCachedContacts(list);
-      }
-      return list;
-    }
-    const cached = getLocalCachedContacts();
-    if (villageId && villageId !== 'all') {
-      return cached.filter((c) => c.villageId === villageId);
-    }
-    return cached;
-  } catch (error) {
-    console.warn('Error fetching contacts from Firestore, using local cache:', error);
-    const cached = getLocalCachedContacts();
-    if (villageId && villageId !== 'all') {
-      return cached.filter((c) => c.villageId === villageId);
-    }
-    return cached;
-  }
-}
-
-/**
- * Check if mobile number already exists in contacts
- */
-export async function checkDuplicateMobile(mobile: string, excludeContactId?: string): Promise<boolean> {
-  const norm = normalizeIndianMobile(mobile);
-  if (!norm) return false;
-
-  try {
-    const q = query(
-      collection(db, CONTACTS_COLLECTION),
-      where('mobile', '==', norm),
-      limit(2)
-    );
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return false;
-
-    if (excludeContactId) {
-      const match = snapshot.docs.find((d) => d.id !== excludeContactId);
-      return Boolean(match);
-    }
-    return true;
-  } catch (error) {
-    console.error('Error checking duplicate mobile:', error);
-    return false;
-  }
-}
-
-/**
- * Add a new contact
- */
-export async function createContact(contactData: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-  const normMobile = normalizeIndianMobile(contactData.mobile);
-  if (!isValidIndianMobile(normMobile)) {
-    throw new Error('कृपया सही 10 अंकों का भारतीय मोबाइल नंबर दर्ज करें (6, 7, 8 या 9 से शुरू)');
-  }
-
-  const isDuplicate = await checkDuplicateMobile(normMobile);
-  if (isDuplicate) {
-    throw new Error(`मोबाइल नंबर ${normMobile} डायरेक्टरी में पहले से मौजूद है!`);
-  }
-
-  const docRef = await addDoc(collection(db, CONTACTS_COLLECTION), {
-    ...contactData,
-    fatherName: contactData.fatherName ? contactData.fatherName.trim() : '',
-    mobile: normMobile,
-    alternateMobile: contactData.alternateMobile ? normalizeIndianMobile(contactData.alternateMobile) : '',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  });
-
-  // If Google Sheet storage is connected and active, sync contact directly to sheet
-  try {
-    const sheetCfg = getStoredSheetConfig();
-    const token = getCachedSheetToken();
-    if (sheetCfg && token) {
-      appendContactToGoogleSheet(token, sheetCfg.spreadsheetId, {
-        id: docRef.id,
-        ...contactData,
-        mobile: normMobile,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      }).catch((e) => console.warn('Background Google Sheet append error:', e));
-    }
-  } catch (err) {
-    console.warn('Could not auto-append to Google Sheet:', err);
-  }
-
-  return docRef.id;
-}
-
-/**
- * Update contact (Admin only)
- */
-export async function updateContact(id: string, contactData: Partial<Contact>): Promise<void> {
-  if (contactData.mobile) {
-    const normMobile = normalizeIndianMobile(contactData.mobile);
-    if (!isValidIndianMobile(normMobile)) {
-      throw new Error('कृपया सही 10 अंकों का भारतीय मोबाइल नंबर दर्ज करें');
-    }
-    const isDuplicate = await checkDuplicateMobile(normMobile, id);
-    if (isDuplicate) {
-      throw new Error(`मोबाइल नंबर ${normMobile} अन्य संपर्क में पहले से दर्ज है!`);
-    }
-    contactData.mobile = normMobile;
-  }
-
-  if (contactData.alternateMobile) {
-    contactData.alternateMobile = normalizeIndianMobile(contactData.alternateMobile);
-  }
-
-  const docRef = doc(db, CONTACTS_COLLECTION, id);
-  await updateDoc(docRef, {
-    ...contactData,
-    updatedAt: Date.now(),
-  });
-}
-
-/**
- * Delete contact (Admin only)
- */
-export async function deleteContact(id: string): Promise<void> {
-  const docRef = doc(db, CONTACTS_COLLECTION, id);
-  await deleteDoc(docRef);
-}
-
-/**
- * Add a new village (Admin only)
- */
-export async function createVillage(name: string): Promise<string> {
-  const trimmed = name.trim();
-  if (!trimmed) {
-    throw new Error('गाँव का नाम खाली नहीं हो सकता');
-  }
-
-  // Check if village already exists
-  const q = query(
-    collection(db, VILLAGES_COLLECTION),
-    where('name', '==', trimmed),
-    limit(1)
-  );
-  const existing = await getDocs(q);
-  if (!existing.empty) {
-    throw new Error(`गाँव "${trimmed}" पहले से मौजूद है!`);
-  }
-
-  const docRef = await addDoc(collection(db, VILLAGES_COLLECTION), {
-    name: trimmed,
-    createdAt: Date.now(),
-  });
-
-  return docRef.id;
-}
-
-/**
- * Rename village and update in all related contacts
- */
-export async function updateVillage(id: string, newName: string): Promise<void> {
-  const trimmed = newName.trim();
-  if (!trimmed) {
-    throw new Error('गाँव का नाम खाली नहीं हो सकता');
-  }
-
-  const vRef = doc(db, VILLAGES_COLLECTION, id);
-  await updateDoc(vRef, { name: trimmed });
-
-  // Update associated contacts
-  try {
-    const cQuery = query(collection(db, CONTACTS_COLLECTION), where('villageId', '==', id));
-    const cSnap = await getDocs(cQuery);
-    if (!cSnap.empty) {
-      const batch = writeBatch(db);
-      cSnap.forEach((cDoc) => {
-        batch.update(cDoc.ref, { villageName: trimmed });
-      });
-      await batch.commit();
-    }
-  } catch (err) {
-    console.warn('Could not batch update contacts for village rename:', err);
-  }
-}
-
-/**
- * Check count of contacts in a village
- */
-export async function getVillageContactsCount(villageId: string): Promise<number> {
-  try {
-    const q = query(collection(db, CONTACTS_COLLECTION), where('villageId', '==', villageId));
-    const snap = await getDocs(q);
-    return snap.size;
-  } catch (error) {
-    console.error('Error getting count:', error);
-    return 0;
-  }
-}
-
-/**
- * Delete village (Admin only) - checks associated contacts first
- */
-export async function deleteVillage(id: string): Promise<void> {
-  const count = await getVillageContactsCount(id);
-  if (count > 0) {
-    throw new Error(
-      `इस गाँव में ${count} संपर्क मौजूद हैं। पहले इन संपर्कों को हटाएँ या दूसरे गाँव में स्थानांतरित करें।`
-    );
-  }
-
-  const vRef = doc(db, VILLAGES_COLLECTION, id);
-  await deleteDoc(vRef);
-}
-
-/**
- * Import contacts from CSV data
- */
-export async function importContactsFromCsv(
-  csvContent: string,
-  villages: Village[]
-): Promise<CsvImportResult> {
-  const lines = csvContent
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  if (lines.length < 2) {
-    throw new Error('CSV फ़ाइल में डेटा पंक्तियाँ नहीं हैं।');
-  }
-
-  // Header verification
-  const header = lines[0].toLowerCase();
-  const rows = lines.slice(1);
-
-  const result: CsvImportResult = {
-    total: rows.length,
-    successCount: 0,
-    failedCount: 0,
-    failedRows: [],
+  const updateCombined = () => {
+    onUpdate({ contacts, villages });
   };
 
-  const villageMapByName = new Map<string, Village>();
-  villages.forEach((v) => villageMapByName.set(v.name.toLowerCase().trim(), v));
-
-  // Get existing mobile numbers to prevent duplicates during batch
-  const existingContacts = await getContacts();
-  const knownMobiles = new Set<string>();
-  existingContacts.forEach((c) => knownMobiles.add(c.mobile));
-
-  for (let i = 0; i < rows.length; i++) {
-    const rowNum = i + 2;
-    const cols = rows[i].split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''));
-    
-    // Expected CSV columns: Village, Name, Mobile, Alternate Mobile, Category, Address, Remark
-    const [villageName, name, mobile, alternateMobile, category, address, remark] = cols;
-
-    if (!villageName || !name || !mobile) {
-      result.failedCount++;
-      result.failedRows.push({
-        rowNumber: rowNum,
-        reason: 'गाँव, नाम या मोबाइल नंबर रिक्त है।',
-        data: { villageName, name, mobile },
-      });
-      continue;
-    }
-
-    const normMobile = normalizeIndianMobile(mobile);
-    if (!isValidIndianMobile(normMobile)) {
-      result.failedCount++;
-      result.failedRows.push({
-        rowNumber: rowNum,
-        reason: 'अमान्य भारतीय मोबाइल नंबर (10 अंक होने चाहिए)',
-        data: { villageName, name, mobile },
-      });
-      continue;
-    }
-
-    if (knownMobiles.has(normMobile)) {
-      result.failedCount++;
-      result.failedRows.push({
-        rowNumber: rowNum,
-        reason: `मोबाइल नंबर ${normMobile} पहले से डायरेक्टरी में मौजूद है`,
-        data: { villageName, name, mobile },
-      });
-      continue;
-    }
-
-    // Find or link village
-    let village = villageMapByName.get(villageName.toLowerCase().trim());
-    let villageId = village ? village.id : '';
-    let finalVillageName = village ? village.name : villageName.trim();
-
-    if (!village) {
-      // Auto-create village if does not exist
-      try {
-        villageId = await createVillage(finalVillageName);
-        const newV: Village = { id: villageId, name: finalVillageName, createdAt: Date.now() };
-        villages.push(newV);
-        villageMapByName.set(finalVillageName.toLowerCase(), newV);
-      } catch (err: any) {
-        // If couldn't create, fail row
-        result.failedCount++;
-        result.failedRows.push({
-          rowNumber: rowNum,
-          reason: `गाँव निर्माण विफल: ${err.message}`,
-          data: { villageName, name, mobile },
-        });
-        continue;
-      }
-    }
-
-    try {
-      await addDoc(collection(db, CONTACTS_COLLECTION), {
-        villageId,
-        villageName: finalVillageName,
-        name: name.trim(),
-        mobile: normMobile,
-        alternateMobile: alternateMobile ? normalizeIndianMobile(alternateMobile) : '',
-        category: category?.trim() || 'सामान्य',
-        address: address?.trim() || '',
-        remark: remark?.trim() || '',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-      knownMobiles.add(normMobile);
-      result.successCount++;
-    } catch (err: any) {
-      result.failedCount++;
-      result.failedRows.push({
-        rowNumber: rowNum,
-        reason: `डेटाबेस त्रुटि: ${err.message}`,
-        data: { villageName, name, mobile },
-      });
-    }
-  }
-
-  return result;
-}
-
-/**
- * Generate CSV text for all contacts
- */
-export function exportContactsToCsv(contacts: Contact[]): string {
-  const headers = ['Village', 'Name', 'Mobile', 'Alternate Mobile', 'Category', 'Address', 'Remark'];
-  const escapeCsv = (val?: string) => `"${(val || '').replace(/"/g, '""')}"`;
-
-  const rows = contacts.map((c) => [
-    escapeCsv(c.villageName),
-    escapeCsv(c.name),
-    escapeCsv(c.mobile),
-    escapeCsv(c.alternateMobile),
-    escapeCsv(c.category),
-    escapeCsv(c.address),
-    escapeCsv(c.remark),
-  ].join(','));
-
-  return [headers.join(','), ...rows].join('\n');
-}
-
-/**
- * Real-time continuous listener for villages and contacts
- * Triggers automatic updates whenever any user or admin modifies data
- */
-export function subscribeToRealtimeDirectory(
-  onUpdate: (data: { villages: Village[]; contacts: Contact[] }) => void,
-  onError?: (error: any) => void
-): () => void {
-  let cachedVillages: Village[] = getLocalCachedVillages();
-  let cachedContacts: Contact[] = getLocalCachedContacts();
-  let villagesLoaded = cachedVillages.length > 0;
-  let contactsLoaded = cachedContacts.length > 0;
-
-  // Immediately broadcast local cached state so user sees data without any delay
-  if (villagesLoaded || contactsLoaded) {
-    onUpdate({ villages: cachedVillages, contacts: cachedContacts });
-  }
-
-  const unsubVillages = onSnapshot(
-    collection(db, VILLAGES_COLLECTION),
-    (snap) => {
-      const list: Village[] = [];
-      snap.forEach((docSnap) => {
-        const data = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          name: data.name || '',
-          createdAt: data.createdAt || 0,
-        });
-      });
-      list.sort((a, b) => a.name.localeCompare(b.name, 'hi'));
-      if (list.length > 0) {
-        cachedVillages = list;
-        setLocalCachedVillages(list);
-      }
-      villagesLoaded = true;
-      if (contactsLoaded) {
-        onUpdate({ villages: cachedVillages, contacts: cachedContacts });
-      }
-    },
-    (err) => {
-      console.warn('Realtime villages listener notice (operating in offline/cached mode):', err);
-      if (onError) onError(err);
-    }
-  );
-
   const unsubContacts = onSnapshot(
-    collection(db, CONTACTS_COLLECTION),
-    (snap) => {
-      const list: Contact[] = [];
-      snap.forEach((docSnap) => {
-        const data = docSnap.data();
-        if (data.status && data.status !== 'approved') {
-          return; // Skip pending or rejected contacts
-        }
-        list.push({
-          id: docSnap.id,
+    contactsCol,
+    (snapshot) => {
+      contacts = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
           villageId: data.villageId || '',
           villageName: data.villageName || '',
           name: data.name || '',
@@ -630,80 +104,59 @@ export function subscribeToRealtimeDirectory(
           category: data.category || 'सामान्य',
           address: data.address || '',
           remark: data.remark || '',
+          createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
+          updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : Date.now(),
           status: data.status || 'approved',
-          createdAt: data.createdAt || 0,
-          updatedAt: data.updatedAt || 0,
-        });
+          addedWithOtp: data.addedWithOtp ?? true,
+        } as Contact;
       });
-      list.sort((a, b) => a.name.localeCompare(b.name, 'hi'));
-      if (list.length > 0) {
-        cachedContacts = list;
-        setLocalCachedContacts(list);
-      }
-      contactsLoaded = true;
-      if (villagesLoaded) {
-        onUpdate({ villages: cachedVillages, contacts: cachedContacts });
-      }
+      updateCombined();
     },
     (err) => {
-      console.warn('Realtime contacts listener notice (operating in offline/cached mode):', err);
+      console.error('Contacts listener error:', err);
+      if (onError) onError(err);
+    }
+  );
+
+  const unsubVillages = onSnapshot(
+    villagesCol,
+    (snapshot) => {
+      villages = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          name: data.name || '',
+          createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
+        } as Village;
+      });
+      // Sort villages alphabetically or by name
+      villages.sort((a, b) => a.name.localeCompare(b.name, 'hi'));
+      updateCombined();
+    },
+    (err) => {
+      console.error('Villages listener error:', err);
       if (onError) onError(err);
     }
   );
 
   return () => {
-    unsubVillages();
     unsubContacts();
+    unsubVillages();
   };
 }
 
-/**
- * Submit an approval request (from public user to add, edit, or delete contact)
- */
-export async function submitApprovalRequest(
-  request: Omit<ApprovalRequest, 'id' | 'createdAt' | 'status'>
-): Promise<string> {
-  const normMobile = normalizeIndianMobile(request.contactData.mobile);
-  if (!isValidIndianMobile(normMobile)) {
-    throw new Error('कृपया सही 10 अंकों का भारतीय मोबाइल नंबर दर्ज करें (6, 7, 8 या 9 से शुरू)');
-  }
-
-  // If new contact, check if mobile already exists in active directory
-  if (request.type === 'new_contact') {
-    const isDuplicate = await checkDuplicateMobile(normMobile);
-    if (isDuplicate) {
-      throw new Error(`मोबाइल नंबर ${normMobile} डायरेक्टरी में पहले से मौजूद है! यदि यह आपका नंबर है तो सुधार का अनुरोध भेजें।`);
-    }
-  }
-
-  const docRef = await addDoc(collection(db, APPROVAL_REQUESTS_COLLECTION), {
-    ...request,
-    contactData: {
-      ...request.contactData,
-      fatherName: request.contactData.fatherName ? request.contactData.fatherName.trim() : '',
-      mobile: normMobile,
-      alternateMobile: request.contactData.alternateMobile ? normalizeIndianMobile(request.contactData.alternateMobile) : '',
-    },
-    status: 'pending',
-    createdAt: Date.now(),
-  });
-
-  return docRef.id;
-}
-
-/**
- * Fetch pending approval requests
- */
-export async function getPendingApprovalRequests(): Promise<ApprovalRequest[]> {
-  try {
-    const fallbackSnap = await getDocs(collection(db, APPROVAL_REQUESTS_COLLECTION));
-    const list: ApprovalRequest[] = [];
-    fallbackSnap.forEach((d) => {
-      const data = d.data();
-      if (data.status === 'pending') {
-        list.push({
+export function subscribeToApprovalRequests(
+  onUpdate: (requests: ApprovalRequest[]) => void,
+  onError?: (err: any) => void
+) {
+  return onSnapshot(
+    approvalsCol,
+    (snapshot) => {
+      const requests = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
           id: d.id,
-          type: data.type || 'new_contact',
+          type: data.type,
           status: data.status || 'pending',
           contactData: data.contactData || {},
           targetContactId: data.targetContactId,
@@ -711,129 +164,282 @@ export async function getPendingApprovalRequests(): Promise<ApprovalRequest[]> {
           requesterName: data.requesterName,
           requesterPhone: data.requesterPhone,
           reason: data.reason,
-          createdAt: data.createdAt || 0,
-          reviewedAt: data.reviewedAt,
-          reviewedBy: data.reviewedBy,
-        });
-      }
-    });
-    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    return list;
-  } catch (err) {
-    console.warn('Error fetching approval requests:', err);
-    return [];
-  }
-}
-
-/**
- * Real-time listener for pending approval requests (for Admin live badge & queue)
- */
-export function subscribeToApprovalRequests(
-  onUpdate: (requests: ApprovalRequest[]) => void,
-  onError?: (error: any) => void
-): () => void {
-  const q = query(collection(db, APPROVAL_REQUESTS_COLLECTION));
-
-  return onSnapshot(
-    q,
-    (snap) => {
-      const list: ApprovalRequest[] = [];
-      snap.forEach((d) => {
-        const data = d.data();
-        if (data.status === 'pending') {
-          list.push({
-            id: d.id,
-            type: data.type || 'new_contact',
-            status: data.status || 'pending',
-            contactData: data.contactData || {},
-            targetContactId: data.targetContactId,
-            existingContactData: data.existingContactData,
-            requesterName: data.requesterName,
-            requesterPhone: data.requesterPhone,
-            reason: data.reason,
-            createdAt: data.createdAt || 0,
-            reviewedAt: data.reviewedAt,
-            reviewedBy: data.reviewedBy,
-          });
-        }
+          createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
+        } as ApprovalRequest;
       });
-      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      onUpdate(list);
+      onUpdate(requests);
     },
     (err) => {
-      console.warn('Error subscribing to approval requests:', err);
+      console.error('Approvals listener error:', err);
       if (onError) onError(err);
     }
   );
 }
 
-/**
- * Approve a pending request (Admin only)
- */
-export async function approveRequest(request: ApprovalRequest, adminEmail?: string): Promise<void> {
-  const reqRef = doc(db, APPROVAL_REQUESTS_COLLECTION, request.id);
+// -------------------------------------------------------------
+// INITIAL SEEDING
+// -------------------------------------------------------------
+export async function seedInitialDataIfEmpty(): Promise<void> {
+  try {
+    const villageSnap = await getDocs(villagesCol);
+    if (villageSnap.empty) {
+      console.log('Seeding initial villages into Firestore...');
+      const batch = writeBatch(db);
+      for (const v of INITIAL_VILLAGES) {
+        const docRef = doc(villagesCol, v.id);
+        batch.set(docRef, { name: v.name, createdAt: Date.now() });
+      }
+      await batch.commit();
+    }
+  } catch (err) {
+    console.error('Error seeding initial data:', err);
+  }
+}
 
-  if (request.type === 'new_contact') {
-    // Add to contacts collection with status 'approved'
+// -------------------------------------------------------------
+// CONTACTS CRUD
+// -------------------------------------------------------------
+export async function getContacts(): Promise<Contact[]> {
+  try {
+    const snap = await getDocs(contactsCol);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Contact));
+  } catch (err) {
+    console.error('getContacts error:', err);
+    return [];
+  }
+}
+
+export async function createContact(
+  contact: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<string> {
+  const docRef = await addDoc(contactsCol, {
+    ...contact,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    status: contact.status || 'approved',
+  });
+  return docRef.id;
+}
+
+export async function updateContact(id: string, updates: Partial<Contact>): Promise<void> {
+  const docRef = doc(db, 'contacts', id);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function deleteContact(id: string): Promise<void> {
+  const docRef = doc(db, 'contacts', id);
+  await deleteDoc(docRef);
+}
+
+// -------------------------------------------------------------
+// VILLAGES CRUD
+// -------------------------------------------------------------
+export async function getVillages(): Promise<Village[]> {
+  try {
+    const snap = await getDocs(villagesCol);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Village));
+  } catch (err) {
+    console.error('getVillages error:', err);
+    return [];
+  }
+}
+
+export async function createVillage(name: string): Promise<Village> {
+  const cleanName = name.trim();
+  const docRef = await addDoc(villagesCol, {
+    name: cleanName,
+    createdAt: Date.now(),
+  });
+  return { id: docRef.id, name: cleanName, createdAt: Date.now() };
+}
+
+export async function updateVillage(id: string, name: string): Promise<void> {
+  const cleanName = name.trim();
+  const docRef = doc(db, 'villages', id);
+  await updateDoc(docRef, { name: cleanName });
+
+  // Update associated contacts' villageName
+  const q = query(contactsCol, where('villageId', '==', id));
+  const snap = await getDocs(q);
+  const batch = writeBatch(db);
+  snap.docs.forEach((d) => {
+    batch.update(doc(db, 'contacts', d.id), { villageName: cleanName });
+  });
+  await batch.commit();
+}
+
+export async function deleteVillage(id: string): Promise<void> {
+  const docRef = doc(db, 'villages', id);
+  await deleteDoc(docRef);
+}
+
+export async function getVillageContactsCount(villageId: string): Promise<number> {
+  try {
+    const q = query(contactsCol, where('villageId', '==', villageId));
+    const snap = await getDocs(q);
+    return snap.size;
+  } catch {
+    return 0;
+  }
+}
+
+// -------------------------------------------------------------
+// APPROVAL REQUESTS
+// -------------------------------------------------------------
+export async function submitApprovalRequest(
+  request: Omit<ApprovalRequest, 'id' | 'createdAt' | 'status'>
+): Promise<string> {
+  const docRef = await addDoc(approvalsCol, {
+    ...request,
+    createdAt: Date.now(),
+    status: 'pending',
+  });
+  return docRef.id;
+}
+
+export async function approveRequest(req: ApprovalRequest): Promise<void> {
+  if (req.type === 'new_contact' && req.contactData) {
     await createContact({
-      villageId: request.contactData.villageId,
-      villageName: request.contactData.villageName,
-      name: request.contactData.name,
-      fatherName: request.contactData.fatherName || '',
-      mobile: request.contactData.mobile,
-      alternateMobile: request.contactData.alternateMobile,
-      category: request.contactData.category,
-      address: request.contactData.address || '',
-      remark: request.contactData.remark || '',
+      ...req.contactData,
       status: 'approved',
     });
-  } else if (request.type === 'edit_contact' && request.targetContactId) {
-    // Update target contact
-    await updateContact(request.targetContactId, {
-      ...request.contactData,
-      status: 'approved',
-    });
-  } else if (request.type === 'delete_contact' && request.targetContactId) {
-    // Delete target contact
-    await deleteContact(request.targetContactId);
+  } else if (req.type === 'delete_contact' && req.targetContactId) {
+    await deleteContact(req.targetContactId);
+  } else if (req.type === 'edit_contact' && req.targetContactId && req.contactData) {
+    await updateContact(req.targetContactId, req.contactData);
   }
 
-  // Update request status to 'approved'
-  await updateDoc(reqRef, {
-    status: 'approved',
-    reviewedAt: Date.now(),
-    reviewedBy: adminEmail || 'Admin',
-  });
+  // Delete from approvals
+  const docRef = doc(db, 'approvals', req.id);
+  await deleteDoc(docRef);
 }
 
-/**
- * Reject a pending request (Admin only)
- */
-export async function rejectRequest(requestId: string, adminEmail?: string, reason?: string): Promise<void> {
-  const reqRef = doc(db, APPROVAL_REQUESTS_COLLECTION, requestId);
-  await updateDoc(reqRef, {
-    status: 'rejected',
-    reviewedAt: Date.now(),
-    reviewedBy: adminEmail || 'Admin',
-    adminRemark: reason || 'अस्वीकृत किया गया',
-  });
+export async function rejectRequest(reqId: string, _reason?: string): Promise<void> {
+  const docRef = doc(db, 'approvals', reqId);
+  await deleteDoc(docRef);
 }
 
-/**
- * Batch approve all pending requests (Admin convenience)
- */
-export async function approveAllPendingRequests(requests?: ApprovalRequest[], adminEmail?: string): Promise<number> {
-  const reqList = requests && requests.length > 0 ? requests : await getPendingApprovalRequests();
-  let success = 0;
-  for (const req of reqList) {
-    try {
-      await approveRequest(req, adminEmail);
-      success++;
-    } catch (e) {
-      console.error('Failed to approve request:', req.id, e);
+export async function approveAllPendingRequests(): Promise<number> {
+  const snap = await getDocs(approvalsCol);
+  let count = 0;
+  for (const d of snap.docs) {
+    const req = { id: d.id, ...d.data() } as ApprovalRequest;
+    await approveRequest(req);
+    count++;
+  }
+  return count;
+}
+
+export async function bulkVerifyBinaOtpContacts(): Promise<number> {
+  const snap = await getDocs(contactsCol);
+  const batch = writeBatch(db);
+  let count = 0;
+  snap.docs.forEach((d) => {
+    const data = d.data();
+    if (data.addedWithOtp === false || !data.remark?.includes('WhatsApp')) {
+      count++;
+      batch.update(doc(db, 'contacts', d.id), {
+        addedWithOtp: true,
+        remark: 'WhatsApp Verified (एडमिन सत्यापित)',
+        updatedAt: Date.now(),
+      });
+    }
+  });
+  await batch.commit();
+  return count;
+}
+
+// -------------------------------------------------------------
+// APP SETTINGS
+// -------------------------------------------------------------
+export async function getAppSettings(): Promise<AppSettings> {
+  try {
+    const docRef = doc(db, 'settings', 'global');
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { ...DEFAULT_SETTINGS, ...docSnap.data() } as AppSettings;
+    }
+  } catch (err) {
+    console.error('getAppSettings error:', err);
+  }
+  return DEFAULT_SETTINGS;
+}
+
+export function getLocalCachedSettings(): AppSettings {
+  return DEFAULT_SETTINGS;
+}
+
+export async function updateAppSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
+  const docRef = doc(db, 'settings', 'global');
+  await setDoc(docRef, settings, { merge: true });
+  return getAppSettings();
+}
+
+// -------------------------------------------------------------
+// CSV IMPORT / EXPORT HELPERS
+// -------------------------------------------------------------
+export function exportContactsToCsv(contacts: Contact[]): string {
+  const headers = ['नाम', 'पिता का नाम', 'गाँव', 'मोबाइल नंबर', 'वैकल्पिक नंबर', 'व्यवसाय', 'पता', 'टिप्पणी'];
+  const rows = contacts.map((c) => [
+    `"${(c.name || '').replace(/"/g, '""')}"`,
+    `"${(c.fatherName || '').replace(/"/g, '""')}"`,
+    `"${(c.villageName || '').replace(/"/g, '""')}"`,
+    `"${c.mobile || ''}"`,
+    `"${c.alternateMobile || ''}"`,
+    `"${(c.category || '').replace(/"/g, '""')}"`,
+    `"${(c.address || '').replace(/"/g, '""')}"`,
+    `"${(c.remark || 'सत्यापित').replace(/"/g, '""')}"`,
+  ]);
+  return '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+}
+
+export async function importContactsFromCsv(
+  csvText: string,
+  villages: Village[]
+): Promise<CsvImportResult> {
+  const lines = csvText.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  let successCount = 0;
+  const failedRows: { rowNumber: number; reason: string; data: Partial<Contact> }[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(',').map((p) => p.replace(/^"|"$/g, '').trim());
+    if (parts.length >= 4) {
+      const [name, fatherName, villageName, mobile] = parts;
+      const cleanMob = normalizeIndianMobile(mobile);
+      if (cleanMob && isValidIndianMobile(cleanMob)) {
+        const foundV = villages.find(
+          (v) => v.name.toLowerCase().includes(villageName.toLowerCase()) || villageName.toLowerCase().includes(v.name.toLowerCase())
+        );
+        await createContact({
+          name,
+          fatherName: fatherName || '',
+          villageId: foundV ? foundV.id : (villages[0]?.id || 'sakodara'),
+          villageName: foundV ? foundV.name : (villageName || 'सकोदरा'),
+          mobile: cleanMob,
+          category: parts[5] || 'सामान्य',
+          status: 'approved',
+          addedWithOtp: true,
+          remark: 'CSV/Google Sheet आयातित',
+        });
+        successCount++;
+      } else {
+        failedRows.push({
+          rowNumber: i + 1,
+          reason: `अमान्य मोबाइल नंबर (${mobile})`,
+          data: { name, mobile },
+        });
+      }
     }
   }
-  return success;
+
+  const total = lines.length > 1 ? lines.length - 1 : 0;
+  return {
+    total,
+    successCount,
+    failedCount: failedRows.length,
+    failedRows,
+  };
 }
-
-

@@ -23,7 +23,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
                 गोपनीयता नीति (Privacy Policy)
               </h2>
               <p className="text-2xs sm:text-xs text-blue-700 font-semibold">
-                भीम डायरेक्टरी - डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी
+                यादव समाज मोबाइल डायरेक्टरी - डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी
               </p>
             </div>
           </div>
@@ -45,7 +45,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
               <span>1. परिचय एवं उद्देश्य (Introduction & Purpose)</span>
             </div>
             <p>
-              यह <strong>भीम डायरेक्टरी (Bhim Directory)</strong> मोबाइल एप्लिकेशन <strong>डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी</strong> के समाज बंधुओं के आपसी संपर्क, सामाजिक समन्वय एवं आपातकालीन सहयोग के लिए तैयार की गई है। हम आपके व्यक्तिगत डेटा की गोपनीयता एवं सुरक्षा का पूर्ण सम्मान करते हैं।
+              यह <strong>यादव समाज मोबाइल डायरेक्टरी (Mobile Directory)</strong> एप्लिकेशन <strong>डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी</strong> के समाज बंधुओं के आपसी संपर्क, सामाजिक समन्वय एवं आपातकालीन सहयोग के लिए तैयार की गई है। हम आपके व्यक्तिगत डेटा की गोपनीयता एवं सुरक्षा का पूर्ण सम्मान करते हैं।
             </p>
             <p className="text-slate-500 text-2xs">
               अंतिम अद्यतन (Last Updated): 18 सितम्बर 2026

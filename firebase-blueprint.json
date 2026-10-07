@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "Contact": {
+      "title": "Contact",
+      "description": "A contact entry in the mobile directory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "villageId": { "type": "string" },
+        "villageName": { "type": "string" },
+        "name": { "type": "string" },
+        "fatherName": { "type": "string" },
+        "mobile": { "type": "string" },
+        "alternateMobile": { "type": "string" },
+        "category": { "type": "string" },
+        "address": { "type": "string" },
+        "remark": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "status": { "type": "string" },
+        "addedWithOtp": { "type": "boolean" }
+      },
+      "required": ["name", "mobile", "villageId", "villageName"]
+    },
+    "Village": {
+      "title": "Village",
+      "description": "A village in the directory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["name"]
+    },
+    "ApprovalRequest": {
+      "title": "ApprovalRequest",
+      "description": "Pending user submission request for contact addition or modification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["type", "status"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Directory global app settings",
+      "type": "object",
+      "properties": {
+        "otpMode": { "type": "string" },
+        "adsMasterEnabled": { "type": "boolean" },
+        "bannerAdEnabled": { "type": "boolean" },
+        "interstitialAdEnabled": { "type": "boolean" }
+      }
+    }
+  },
+  "firestore": {
+    "/contacts/{contactId}": {
+      "schema": "Contact",
+      "description": "Directory contacts collection"
+    },
+    "/villages/{villageId}": {
+      "schema": "Village",
+      "description": "Villages collection"
+    },
+    "/approvals/{approvalId}": {
+      "schema": "ApprovalRequest",
+      "description": "Approval requests collection"
+    },
+    "/settings/{settingId}": {
+      "schema": "AppSettings",
+      "description": "App settings collection"
+    }
+  }
+}

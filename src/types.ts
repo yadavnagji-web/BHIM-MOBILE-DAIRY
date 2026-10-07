@@ -19,6 +19,7 @@ export interface Contact {
   createdAt: number;
   updatedAt?: number;
   status?: 'approved' | 'pending' | 'rejected';
+  addedWithOtp?: boolean;
 }
 
 export type ApprovalRequestType = 'new_contact' | 'edit_contact' | 'delete_contact';

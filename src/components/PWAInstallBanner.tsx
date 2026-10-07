@@ -47,7 +47,7 @@ export const PWAInstallBanner: React.FC<PWAInstallBannerProps> = ({ onOpenModal 
         </div>
         <div className="min-w-0">
           <p className="font-extrabold text-slate-950 leading-tight truncate text-[11px] sm:text-xs">
-            📲 भीम डायरेक्टरी ऐप मोबाइल में इंस्टॉल करें
+            📲 यादव समाज मोबाइल डायरेक्टरी ऐप मोबाइल में इंस्टॉल करें
           </p>
           <p className="text-[10px] text-slate-800 font-semibold truncate hidden sm:block">
             सीधे 1-क्लिक में खोलें, बिना ब्राउज़र और ऑफ़लाइन भी काम करेगा!

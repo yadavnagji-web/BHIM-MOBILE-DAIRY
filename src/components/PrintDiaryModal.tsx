@@ -10,14 +10,14 @@ import {
 import { Contact, Village } from '../types';
 
 interface PrintDiaryModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
   contacts: Contact[];
   villages: Village[];
 }
 
 export const PrintDiaryModal: React.FC<PrintDiaryModalProps> = ({
-  isOpen,
+  isOpen = true,
   onClose,
   contacts,
   villages,
@@ -27,7 +27,7 @@ export const PrintDiaryModal: React.FC<PrintDiaryModalProps> = ({
   const [copied, setCopied] = useState(false);
 
   // App URL for QR Code
-  const appUrl = typeof window !== 'undefined' ? window.location.href.split('?')[0] : 'https://bhim-directory.web.app';
+  const appUrl = typeof window !== 'undefined' ? window.location.href.split('?')[0] : 'https://yadav-samaj-directory.web.app';
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(appUrl)}&margin=10`;
 
   // Filter contacts by village for print
@@ -234,7 +234,7 @@ export const PrintDiaryModal: React.FC<PrintDiaryModalProps> = ({
 
                 <div className="space-y-1">
                   <h3 className="text-2xl font-black text-amber-300">
-                    BHIM DIRECTORY
+                    YADAV SAMAJ MOBILE DIRECTORY
                   </h3>
                   <h4 className="text-sm font-extrabold text-white">
                     डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी
@@ -248,7 +248,7 @@ export const PrintDiaryModal: React.FC<PrintDiaryModalProps> = ({
                 <div className="bg-white p-3 rounded-2xl inline-block shadow-lg mx-auto">
                   <img
                     src={qrCodeUrl}
-                    alt="Bhim Directory App QR Code"
+                    alt="Yadav Samaj Mobile Directory App QR Code"
                     className="w-44 h-44 mx-auto rounded-lg"
                   />
                   <span className="block text-2xs font-bold text-slate-800 mt-1">

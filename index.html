@@ -3,17 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Bhim Directory - डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी</title>
-    <meta name="description" content="डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी - ग्राम अनुसार मोबाइल डायरेक्टरी. यह डायरेक्टरी केवल यादव समाज वागड़ चौरासी क्षेत्र के लिए है" />
-    <meta property="og:title" content="Bhim Directory - डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी" />
-    <meta property="og:description" content="डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी - ग्राम अनुसार मोबाइल डायरेक्टरी. यह डायरेक्टरी केवल यादव समाज वागड़ चौरासी क्षेत्र के लिए है" />
+    <script>
+      // Gracefully ignore WebSocket & Vite HMR logs in preview iframe (per environment constraints: "HMR: Disabled. Ignore WebSocket errors")
+      (function() {
+        var origError = console.error;
+        console.error = function() {
+          var first = arguments[0];
+          if (typeof first === 'string' && (first.indexOf('[vite]') !== -1 || first.indexOf('WebSocket') !== -1 || first.indexOf('vite-hmr') !== -1)) {
+            return;
+          }
+          origError.apply(console, arguments);
+        };
+      })();
+    </script>
+    <title>Mobile Directory - यादव समाज मोबाइल डायरेक्टरी (Yadav Samaj Mobile Directory)</title>
+    <meta name="description" content="यादव समाज मोबाइल डायरेक्टरी (Mobile Directory) - डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी - ग्राम अनुसार मोबाइल डायरेक्टरी" />
+    <meta property="og:title" content="Mobile Directory - यादव समाज मोबाइल डायरेक्टरी (Yadav Samaj Mobile Directory)" />
+    <meta property="og:description" content="यादव समाज मोबाइल डायरेक्टरी (Mobile Directory) - डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी - ग्राम अनुसार मोबाइल डायरेक्टरी" />
     <meta property="og:type" content="website" />
     <meta name="theme-color" content="#172554" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Bhim Directory" />
-    <meta name="application-name" content="Bhim Directory" />
+    <meta name="apple-mobile-web-app-title" content="Mobile Directory" />
+    <meta name="application-name" content="Mobile Directory" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />

@@ -1,7 +1,4 @@
-// Google AdMob Configuration & Service
-// Banner Ad Unit ID: ca-app-pub-6423718618240244/6735134164
-// Interstitial Ad Unit ID: ca-app-pub-6423718618240244/1291235796
-
+// Ad Service with Master ON/OFF and Admin Configuration
 export const ADMOB_CONFIG = {
   PUBLISHER_ID: 'ca-app-pub-6423718618240244',
   ADSENSE_CLIENT: 'ca-pub-6423718618240244',
@@ -9,11 +6,43 @@ export const ADMOB_CONFIG = {
   BANNER_SLOT_ID: '6735134164',
   INTERSTITIAL_AD_ID: 'ca-app-pub-6423718618240244/1291235796',
   INTERSTITIAL_SLOT_ID: '1291235796',
-  
-  // Non-disturbing frequency capping rules:
-  INTERSTITIAL_COOLDOWN_MS: 3 * 60 * 1000, // 3 minutes minimum between interstitial ads
+  INTERSTITIAL_COOLDOWN_MS: 3 * 60 * 1000,
   MAX_INTERSTITIAL_PER_SESSION: 4,
 };
+
+export interface AdSettings {
+  adsMasterEnabled: boolean;
+  bannerAdEnabled: boolean;
+  interstitialAdEnabled: boolean;
+  bannerAdUnit: string;
+  interstitialAdUnit: string;
+  sponsorTitle?: string;
+  sponsorContact?: string;
+  sponsorTagline?: string;
+  sponsorAdEnabled?: boolean;
+  bannerImageUrl?: string;
+  bannerTargetUrl?: string;
+  interstitialImageUrl?: string;
+  interstitialTargetUrl?: string;
+}
+
+const DEFAULT_AD_SETTINGS: AdSettings = {
+  adsMasterEnabled: true,
+  bannerAdEnabled: true,
+  interstitialAdEnabled: true,
+  bannerAdUnit: 'ca-app-pub-6423718618240244/6735134164',
+  interstitialAdUnit: 'ca-app-pub-6423718618240244/1291235796',
+  sponsorTitle: 'जलद प्रिंटर्स एवं स्टेशनर्स (सकोदरा/सागवाड़ा)',
+  sponsorContact: '9530482812',
+  sponsorTagline: 'शादी कार्ड, फ्लेक्स बैनर, पम्पलेट व सभी प्रकार की छपाई हेतु संपर्क करें',
+  sponsorAdEnabled: true,
+  bannerImageUrl: '',
+  bannerTargetUrl: '',
+  interstitialImageUrl: '',
+  interstitialTargetUrl: '',
+};
+
+const STORAGE_KEY = 'yadav_samaj_ad_settings';
 
 declare global {
   interface Window {
@@ -23,18 +52,59 @@ declare global {
 }
 
 class AdService {
+  private settings: AdSettings = DEFAULT_AD_SETTINGS;
   private lastInterstitialTime: number = 0;
   private interstitialImpressionsThisSession: number = 0;
   private tabSwitchCount: number = 0;
   private isInterstitialActive: boolean = false;
   private listeners: ((isOpen: boolean, triggerReason?: string) => void)[] = [];
+  private settingsListeners: ((settings: AdSettings) => void)[] = [];
 
   constructor() {
-    // Check if saved timestamp exists in sessionStorage
-    const savedLast = sessionStorage.getItem('bhim_last_ad_time');
-    if (savedLast) {
-      this.lastInterstitialTime = parseInt(savedLast, 10) || 0;
+    this.loadSettings();
+  }
+
+  private loadSettings(): void {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        this.settings = { ...DEFAULT_AD_SETTINGS, ...JSON.parse(stored) };
+      }
+    } catch {
+      this.settings = DEFAULT_AD_SETTINGS;
     }
+  }
+
+  public getSettings(): AdSettings {
+    return { ...this.settings };
+  }
+
+  public updateSettings(newSettings: Partial<AdSettings>): void {
+    this.settings = { ...this.settings, ...newSettings };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings));
+    } catch {}
+    this.settingsListeners.forEach((l) => l(this.settings));
+  }
+
+  public subscribeSettings(listener: (settings: AdSettings) => void) {
+    this.settingsListeners.push(listener);
+    listener(this.settings);
+    return () => {
+      this.settingsListeners = this.settingsListeners.filter((l) => l !== listener);
+    };
+  }
+
+  public isAdsEnabled(): boolean {
+    return this.settings.adsMasterEnabled;
+  }
+
+  public isBannerEnabled(): boolean {
+    return this.settings.adsMasterEnabled && this.settings.bannerAdEnabled;
+  }
+
+  public isInterstitialEnabled(): boolean {
+    return this.settings.adsMasterEnabled && this.settings.interstitialAdEnabled;
   }
 
   public subscribe(listener: (isOpen: boolean, triggerReason?: string) => void) {
@@ -50,48 +120,36 @@ class AdService {
   }
 
   public canShowInterstitial(): boolean {
-    const now = Date.now();
+    if (!this.isInterstitialEnabled()) return false;
     if (this.isInterstitialActive) return false;
-    if (this.interstitialImpressionsThisSession >= ADMOB_CONFIG.MAX_INTERSTITIAL_PER_SESSION) {
-      return false;
-    }
-    if (now - this.lastInterstitialTime < ADMOB_CONFIG.INTERSTITIAL_COOLDOWN_MS) {
-      return false;
-    }
+    if (this.interstitialImpressionsThisSession >= 4) return false;
+    const now = Date.now();
+    if (now - this.lastInterstitialTime < 2 * 60 * 1000) return false;
     return true;
   }
 
-  /**
-   * Safe, non-disturbing interstitial trigger.
-   * Only shows if cooldown and session limits pass.
-   * @param triggerReason Context where ad is called (e.g., 'after_add_contact', 'tab_switch')
-   */
   public triggerInterstitial(triggerReason: string): boolean {
     if (!this.canShowInterstitial()) {
       return false;
     }
 
-    // Check if native AdMob is available in Android WebView / Capacitor / Cordova
     if (typeof window !== 'undefined' && window.admob && window.admob.interstitial) {
       try {
         window.admob.interstitial.show();
         this.markAdShown();
         return true;
-      } catch (err) {
-        console.warn('Native AdMob show failed, using web overlay fallback', err);
-      }
+      } catch {}
     }
 
-    // Web Interstitial Overlay (Polite & Non-disturbing)
     this.markAdShown();
     this.notify(true, triggerReason);
     return true;
   }
 
   public onTabSwitch(): void {
+    if (!this.isInterstitialEnabled()) return;
     this.tabSwitchCount += 1;
-    // Show interstitial gently only every 6 tab switches if cooldown allows
-    if (this.tabSwitchCount >= 6 && this.canShowInterstitial()) {
+    if (this.tabSwitchCount >= 5 && this.canShowInterstitial()) {
       this.tabSwitchCount = 0;
       this.triggerInterstitial('tab_switch');
     }
@@ -105,11 +163,6 @@ class AdService {
     const now = Date.now();
     this.lastInterstitialTime = now;
     this.interstitialImpressionsThisSession += 1;
-    try {
-      sessionStorage.setItem('bhim_last_ad_time', now.toString());
-    } catch {
-      // ignore storage quota
-    }
   }
 
   public loadGoogleAdsenseTag(): void {

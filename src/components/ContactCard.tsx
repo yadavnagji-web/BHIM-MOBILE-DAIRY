@@ -204,16 +204,29 @@ export const ContactCard: React.FC<ContactCardProps> = ({
             </button>
           </div>
         ) : (
-          <div className="pt-1 flex justify-end">
+          <div className="pt-1 flex items-center justify-between">
+            {onDelete && (
+              <button
+                type="button"
+                id={`user-otp-delete-btn-${contact.id}`}
+                onClick={() => onDelete(contact)}
+                className="inline-flex items-center gap-1 text-2xs font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                title="WhatsApp OTP सत्यापन द्वारा यह नंबर हटाएं"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                <span>OTP से हटाएं</span>
+              </button>
+            )}
+
             <button
               type="button"
               id={`request-correction-btn-${contact.id}`}
               onClick={() => onRequestCorrection && onRequestCorrection(contact)}
-              className="inline-flex items-center gap-1.5 text-2xs font-semibold text-slate-500 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-2xs font-semibold text-slate-500 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors cursor-pointer ml-auto"
               title="यह नंबर आपका है या गलत है तो सुधार हेतु एडमिन को अनुरोध भेजें"
             >
               <ShieldAlert className="w-3.5 h-3.5 text-slate-400" />
-              <span>सुधार / हटाने का अनुरोध</span>
+              <span>सुधार अनुरोध</span>
             </button>
           </div>
         )}

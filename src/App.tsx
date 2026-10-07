@@ -321,7 +321,7 @@ export default function App() {
       {/* PWA / App Version Auto-Update Banner */}
       {appUpdateAvailable && (
         <div className="bg-amber-400 text-slate-950 px-4 py-2.5 text-center text-xs font-black flex items-center justify-center gap-3 sticky top-0 z-40 shadow-md">
-          <span>⚡ भीम डायरेक्टरी का नया अपडेट उपलब्ध है!</span>
+          <span>⚡ यादव समाज मोबाइल डायरेक्टरी का नया अपडेट उपलब्ध है!</span>
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -392,7 +392,7 @@ export default function App() {
                 {/* Organization and App Title */}
                 <div className="space-y-1 pt-1">
                   <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm">
-                    BHIM DIRECTORY
+                    YADAV SAMAJ MOBILE DIRECTORY
                   </h1>
                   <h2 className="text-base sm:text-lg font-extrabold text-amber-300 leading-snug">
                     डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी
@@ -789,10 +789,11 @@ export default function App() {
         />
       )}
 
-      {/* MODAL 3: DELETE CONFIRMATION (ADMIN ONLY) */}
+      {/* MODAL 3: DELETE CONFIRMATION */}
       {deletingContact && (
         <DeleteConfirmModal
           contact={deletingContact}
+          isAdmin={isAdmin}
           onClose={() => setDeletingContact(null)}
           onSuccess={() => {
             setDeletingContact(null);
@@ -858,6 +859,8 @@ export default function App() {
       <ShareAppModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
+        totalContacts={contacts.length}
+        totalVillages={villages.length}
       />
 
       {/* MODAL 8: PRIVACY POLICY MODAL */}

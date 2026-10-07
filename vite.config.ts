@@ -22,9 +22,9 @@ export default defineConfig(() => {
         ],
         manifest: {
           id: '/',
-          name: 'BHIM DIRECTORY - डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी',
-          short_name: 'Bhim Directory',
-          description: 'डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी - ग्राम अनुसार मोबाइल डायरेक्टरी',
+          name: 'Mobile Directory - यादव समाज मोबाइल डायरेक्टरी',
+          short_name: 'Mobile Directory',
+          description: 'यादव समाज मोबाइल डायरेक्टरी (Mobile Directory) - डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी',
           theme_color: '#172554',
           background_color: '#0f172a',
           display: 'standalone',
@@ -92,22 +92,18 @@ export default defineConfig(() => {
           ]
         },
         devOptions: {
-          enabled: true,
-          type: 'module'
+          enabled: false,
         }
       })
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve('.'),
       },
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâ€”file watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      hmr: false,
     },
   };
 });

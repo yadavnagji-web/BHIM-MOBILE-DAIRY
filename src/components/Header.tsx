@@ -42,11 +42,16 @@ export const Header: React.FC<HeaderProps> = ({
               />
             </div>
             <div className="min-w-0">
-              <h1 className="font-black text-white text-base sm:text-xl tracking-tight leading-tight truncate">
-                BHIM DIRECTORY
-              </h1>
-              <p className="text-2xs sm:text-xs text-blue-200 font-semibold tracking-wide truncate">
-                डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी
+              <div className="flex items-center gap-1.5">
+                <h1 className="font-black text-white text-base sm:text-xl tracking-tight leading-tight truncate">
+                  MOBILE DIRECTORY
+                </h1>
+                <span className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider">
+                  मोबाइल डायरेक्टरी
+                </span>
+              </div>
+              <p className="text-2xs sm:text-xs text-amber-300 font-extrabold tracking-wide truncate">
+                यादव समाज मोबाइल डायरेक्टरी • वागड़ चौरासी
               </p>
             </div>
           </button>
@@ -128,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 id="header-install-app-btn"
                 onClick={onInstallClick}
-                title="भीम डायरेक्टरी ऐप अपने फ़ोन में इनस्टॉल करें"
+                title="यादव समाज मोबाइल डायरेक्टरी ऐप अपने फ़ोन में इनस्टॉल करें"
                 className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-blue-700 hover:bg-blue-600 text-white shadow-xs border border-blue-400/50 transition-all cursor-pointer active:scale-95"
               >
                 <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5] text-amber-300" />
@@ -141,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 id="header-share-app-btn"
                 onClick={onShare}
-                title="भीम डायरेक्टरी ऐप शेयर करें"
+                title="यादव समाज मोबाइल डायरेक्टरी ऐप शेयर करें"
                 className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md transition-all cursor-pointer active:scale-95 border border-amber-300"
               >
                 <Share2 className="w-4 h-4 text-slate-950 stroke-[2.5]" />

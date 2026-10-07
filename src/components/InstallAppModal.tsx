@@ -62,7 +62,7 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ isOpen, onClos
             <div className="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-blue-400/80 shadow-lg flex-shrink-0 bg-blue-800">
               <img
                 src="/ambedkar_portrait.jpg"
-                alt="Bhim Directory"
+                alt="Yadav Samaj Mobile Directory"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -72,10 +72,10 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ isOpen, onClos
                 <span>OFFICIAL MOBILE APP</span>
               </div>
               <h2 className="text-lg sm:text-xl font-black text-white leading-tight">
-                BHIM DIRECTORY
+                MOBILE DIRECTORY
               </h2>
               <p className="text-xs text-blue-200 font-medium line-clamp-1">
-                डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी
+                यादव समाज मोबाइल डायरेक्टरी • वागड़ चौरासी
               </p>
             </div>
           </div>
@@ -91,7 +91,7 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ isOpen, onClos
                 ऐप आपके मोबाइल में पहले से इनस्टॉल है!
               </h3>
               <p className="text-xs text-slate-600">
-                आप अपनी होम स्क्रीन पर मौजूद <strong>BHIM DIRECTORY</strong> आइकन से इसे सीधे 1 क्लिक में खोल सकते हैं।
+                आप अपनी होम स्क्रीन पर मौजूद <strong>MOBILE DIRECTORY</strong> आइकन से इसे सीधे 1 क्लिक में खोल सकते हैं।
               </p>
               <button
                 type="button"
@@ -255,7 +255,7 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ isOpen, onClos
                           3
                         </span>
                         <div>
-                          ऊपर दाएं कोने में <strong>"Add" (जोड़ें)</strong> दबाएं। अब भीम डायरेक्टरी ऐप आपके आईफोन पर हमेशा मौजूद रहेगी।
+                          ऊपर दाएं कोने में <strong>"Add" (जोड़ें)</strong> दबाएं। अब यादव समाज मोबाइल डायरेक्टरी ऐप आपके आईफोन पर हमेशा मौजूद रहेगी।
                         </div>
                       </div>
                     </div>
