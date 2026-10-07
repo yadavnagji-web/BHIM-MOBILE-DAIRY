@@ -30,19 +30,16 @@ export const ShareAppModal: React.FC<ShareAppModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Use the verified live Cloud Run app URL or window origin
-  const liveAppUrl =
-    typeof window !== 'undefined' && window.location.origin.includes('run.app')
-      ? window.location.origin
-      : 'https://ais-pre-wnq4hs5kseyfepdlmwvoxr-461049006452.asia-southeast1.run.app';
+  // Direct Installable Vercel App URL requested by user
+  const liveAppUrl = 'https://bhim-mobile-dairy-lnkm.vercel.app/';
 
   const shareTitle = 'YADAV SAMAJ MOBILE DIRECTORY - डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी';
   const shareText = `📱 *YADAV SAMAJ MOBILE DIRECTORY (मोबाइल डायरेक्टरी)*
 🏛️ *डॉ. बी. आर. अम्बेडकर यादव युवा संगठन वागड़ चौरासी*
 
-अपने गाँव के सभी समाज बंधुओं के सत्यापित मोबाइल नंबर, व्यवसाय व गाँव सूची देखने के लिए नीचे दिए गए लाइव लिंक से सीधे 1-क्लिक में ऐप खोलें व फोन में इंस्टॉल करें:
+अपने गाँव के सभी समाज बंधुओं के सत्यापित मोबाइल नंबर, व्यवसाय व गाँव सूची देखने के लिए नीचे दिए गए लाइव लिंक से सीधे 1-क्लिक में ऐप खोलें व इंस्टॉल करें:
 
-🌐 *लाइव ऐप लिंक (Live App Link):*
+🌐 *लाइव ऐप इंस्टॉल लिंक (App Install Link):*
 👉 ${liveAppUrl}
 
 📊 *वर्तमान लाइव रिकॉर्ड:*
@@ -50,7 +47,7 @@ export const ShareAppModal: React.FC<ShareAppModalProps> = ({
 • पंजीकृत संपर्क: ${totalContacts} संपर्क
 • 100% WhatsApp OTP सत्यापित नंबर
 
-(लिंक खोलते ही ऊपर "इनस्टॉल करें" बटन दबाकर फोन की होम स्क्रीन पर सेव कर सकते हैं)
+(लिंक खोलते ही सीधे "इनस्टॉल करें / Install App" बटन दबाकर फोन की होम स्क्रीन पर ऐप सेव कर सकते हैं)
 
 जय भीम! 🇮🇳`;
 
