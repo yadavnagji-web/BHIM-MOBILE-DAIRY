@@ -526,11 +526,12 @@ export default function App() {
                     </button>
                     <button
                       type="button"
+                      id="village-add-contact-btn"
                       onClick={() => setShowAddModal(true)}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold shadow-sm shadow-blue-700/20 transition-all cursor-pointer shrink-0"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer shrink-0"
                     >
                       <UserPlus className="w-3.5 h-3.5 shrink-0" />
-                      <span>संपर्क जोड़ें</span>
+                      <span>जोड़ें</span>
                     </button>
                   </div>
                 </div>

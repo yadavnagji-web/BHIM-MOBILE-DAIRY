@@ -1,5 +1,5 @@
 import React from 'react';
-import { Share2, Home, Layers, Star, HelpCircle, ShieldCheck, Download, UserPlus } from 'lucide-react';
+import { Share2, Home, Layers, Star, HelpCircle, ShieldCheck, Download } from 'lucide-react';
 import { ActiveTab } from '../types';
 
 interface HeaderProps {
@@ -126,21 +126,8 @@ export const Header: React.FC<HeaderProps> = ({
             </nav>
           )}
 
-          {/* Right Side Actions: Add Contact, Install App & Share */}
+          {/* Right Side Actions: Install App & Share */}
           <div className="flex items-center gap-2 shrink-0">
-            {setActiveTab && (
-              <button
-                type="button"
-                id="header-add-contact-btn"
-                onClick={() => setActiveTab('add')}
-                title="नया संपर्क डायरेक्टरी में जोड़ें"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs border border-emerald-400/50 transition-all cursor-pointer active:scale-95 shrink-0"
-              >
-                <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5] shrink-0" />
-                <span>संपर्क जोड़ें</span>
-              </button>
-            )}
-
             {onInstallClick && (
               <button
                 type="button"

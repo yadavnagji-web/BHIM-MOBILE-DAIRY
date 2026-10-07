@@ -319,7 +319,7 @@ export const ContactCard: React.FC<ContactCardProps> = ({
                   title="WhatsApp OTP सत्यापन द्वारा यह नंबर हटाएं"
                 >
                   <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                  <span>OTP से हटाएं</span>
+                  <span>WhatsApp OTP से हटाएं</span>
                 </button>
               )}
 
