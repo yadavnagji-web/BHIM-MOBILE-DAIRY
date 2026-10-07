@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Search,
   Users,
@@ -61,6 +61,24 @@ export default function App() {
   const [selectedVillageId, setSelectedVillageId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [expandedContactIds, setExpandedContactIds] = useState<Set<string>>(new Set());
+
+  // Reset expanded contacts when village selection changes so it always starts as a clean list of names
+  useEffect(() => {
+    setExpandedContactIds(new Set());
+  }, [selectedVillageId]);
+
+  const toggleContactExpanded = (id: string) => {
+    setExpandedContactIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [isAdmin, setIsAdmin] = useState(false);
@@ -158,10 +176,11 @@ export default function App() {
     }
   };
 
+  const hasAlertedStartupRef = useRef(false);
+
   // Initial seed check & Realtime Live Sync for automatic instant updates
   useEffect(() => {
     let unsubscribeRealtime: (() => void) | null = null;
-    let hasAlertedStartup = false;
 
     const setupRealtime = async () => {
       try {
@@ -179,13 +198,13 @@ export default function App() {
             setLoading(false);
 
             // Show directory auto-update banner ONLY ONCE when app starts and loads data,
-            // then automatically disappear after 3.5s and NEVER blink or re-appear repeatedly!
-            if (!hasAlertedStartup && cList.length > 0) {
-              hasAlertedStartup = true;
+            // then automatically disappear after 3 seconds and NEVER blink or re-appear repeatedly!
+            if (!hasAlertedStartupRef.current && cList.length > 0) {
+              hasAlertedStartupRef.current = true;
               setRealtimeUpdateAlert('✨ डायरेक्टरी स्वतः अपडेट हो गई है');
               setTimeout(() => {
                 setRealtimeUpdateAlert(null);
-              }, 3500);
+              }, 3000);
             }
           },
           (err) => {
@@ -241,13 +260,6 @@ export default function App() {
       }
     } catch {}
   }, [villages]);
-
-  // Automatically select initial village so Realtime Database contacts appear immediately on screen!
-  useEffect(() => {
-    if (!selectedVillageId && villages.length > 0) {
-      setSelectedVillageId(villages[0].id);
-    }
-  }, [villages, selectedVillageId]);
 
   const loadData = useCallback(async () => {
     try {
@@ -472,21 +484,20 @@ export default function App() {
                           🌐 सभी गाँव देखें (All Villages - {contacts.length} संपर्क)
                         </option>
                       </select>
-                      <ChevronDown className="w-5 h-5 text-slate-600 absolute right-3.5 top-3.5 pointer-events-none" />
+                      <ChevronDown className="w-5 h-5 text-slate-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none shrink-0" />
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* FLOW: BEFORE VILLAGE IS SELECTED vs AFTER VILLAGE IS SELECTED */}
-            {!selectedVillageId ? null : (
-              /* AFTER VILLAGE IS SELECTED: Numbers are shown systematically */
+            {/* AFTER VILLAGE IS SELECTED: Numbers are shown systematically */}
+            {selectedVillageId ? (
               <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-300">
                 {/* Systematic Village Header & Quick Context Actions */}
                 <div className="bg-white p-4 sm:p-5 rounded-2xl border border-blue-100 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xl shadow-md shadow-blue-600/20 font-black">
+                    <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xl shadow-md shadow-blue-600/20 font-black shrink-0">
                       {selectedVillageId === 'all' ? '🌐' : '🏘️'}
                     </div>
                     <div>
@@ -502,23 +513,23 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                     <button
                       type="button"
                       onClick={() => {
                         setSelectedVillageId('');
                         setSearchQuery('');
                       }}
-                      className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors"
+                      className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer shrink-0"
                     >
                       🔄 दूसरा गाँव चुनें
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowAddModal(true)}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold shadow-sm shadow-blue-700/20 transition-all"
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold shadow-sm shadow-blue-700/20 transition-all cursor-pointer shrink-0"
                     >
-                      <UserPlus className="w-3.5 h-3.5" />
+                      <UserPlus className="w-3.5 h-3.5 shrink-0" />
                       <span>संपर्क जोड़ें</span>
                     </button>
                   </div>
@@ -527,7 +538,7 @@ export default function App() {
                 {/* Village Search Bar & Category Filters */}
                 <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
                   <div className="relative">
-                    <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3" />
+                    <Search className="w-4.5 h-4.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none shrink-0" />
                     <input
                       type="text"
                       id="home-search-input"
@@ -544,17 +555,17 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setSearchQuery('')}
-                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 p-1"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer shrink-0"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-4 h-4 shrink-0" />
                       </button>
                     )}
                   </div>
 
                   {/* Category Chips for One-Tap Filtering */}
                   <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-                    <span className="text-slate-500 font-bold flex items-center gap-1 flex-shrink-0 mr-1">
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="text-slate-500 font-bold flex items-center gap-1 shrink-0 mr-1">
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                       श्रेणी:
                     </span>
                     <button
@@ -645,27 +656,60 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                    {filteredContacts.map((contact, index) => (
-                      <React.Fragment key={contact.id}>
-                        <ContactCard
-                          contact={contact}
-                          isAdmin={isAdmin}
-                          onEdit={(c) => setEditingContact(c)}
-                          onDelete={(c) => setDeletingContact(c)}
-                          onRequestCorrection={(c) => setCorrectionContact(c)}
-                        />
-                        {index === 5 && filteredContacts.length > 6 && (
-                          <div className="col-span-full">
-                            <BannerAd placement="in-feed" />
-                          </div>
-                        )}
-                      </React.Fragment>
-                    ))}
+                  <div className="space-y-3">
+                    {/* Header bar indicating list of names and click to expand */}
+                    <div className="flex items-center justify-between bg-blue-50/80 border border-blue-200/90 px-3.5 py-2.5 rounded-2xl text-xs">
+                      <div className="flex items-center gap-1.5 text-blue-950 font-extrabold">
+                        <span>📋 नाम की सूची ({filteredContacts.length})</span>
+                        <span className="text-[11px] font-medium text-blue-700 hidden sm:inline">
+                          • विवरण देखने हेतु नाम पर क्लिक करें
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          id="expand-all-contacts-btn"
+                          onClick={() => setExpandedContactIds(new Set(filteredContacts.map((c) => c.id)))}
+                          className="text-[11px] font-bold text-blue-800 hover:text-blue-950 bg-white px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs hover:bg-blue-50 transition cursor-pointer"
+                        >
+                          📂 सभी खोलें
+                        </button>
+                        <button
+                          type="button"
+                          id="collapse-all-contacts-btn"
+                          onClick={() => setExpandedContactIds(new Set())}
+                          className="text-[11px] font-bold text-slate-700 hover:text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+                        >
+                          📁 सभी समेटें
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {filteredContacts.map((contact, index) => (
+                        <React.Fragment key={contact.id}>
+                          <ContactCard
+                            contact={contact}
+                            index={index}
+                            isAdmin={isAdmin}
+                            isExpanded={expandedContactIds.has(contact.id)}
+                            onToggleExpand={() => toggleContactExpanded(contact.id)}
+                            onEdit={(c) => setEditingContact(c)}
+                            onDelete={(c) => setDeletingContact(c)}
+                            onRequestCorrection={(c) => setCorrectionContact(c)}
+                          />
+                          {index === 5 && filteredContacts.length > 6 && (
+                            <div className="col-span-full">
+                              <BannerAd placement="in-feed" />
+                            </div>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         )}
 
@@ -782,6 +826,9 @@ export default function App() {
                 const exists = prev.some((c) => c.id === newContact.id || c.mobile === newContact.mobile);
                 return exists ? prev : [newContact, ...prev];
               });
+              if (selectedVillageId && selectedVillageId !== 'all' && selectedVillageId !== newContact.villageId) {
+                setSelectedVillageId(newContact.villageId);
+              }
               showToast(`✅ '${newContact.name}' का संपर्क डायरेक्टरी में तुरंत जुड़ गया!`);
             } else {
               showToast('✅ नया संपर्क डायरेक्टरी में जुड़ गया!');

@@ -717,10 +717,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {filteredContacts.map((contact) => (
+              {filteredContacts.map((contact, idx) => (
                 <ContactCard
                   key={contact.id}
                   contact={contact}
+                  index={idx}
                   isAdmin={true}
                   onEdit={onEditContact}
                   onDelete={onDeleteContact}

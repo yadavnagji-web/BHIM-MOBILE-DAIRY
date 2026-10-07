@@ -1,5 +1,5 @@
 import React from 'react';
-import { Share2, Home, Layers, Star, HelpCircle, ShieldCheck, Download } from 'lucide-react';
+import { Share2, Home, Layers, Star, HelpCircle, ShieldCheck, Download, UserPlus } from 'lucide-react';
 import { ActiveTab } from '../types';
 
 interface HeaderProps {
@@ -31,9 +31,9 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             id="brand-logo-btn"
             onClick={() => setActiveTab && setActiveTab('home')}
-            className="flex items-center gap-2.5 sm:gap-3 text-left group focus:outline-none min-w-0"
+            className="flex items-center gap-2.5 sm:gap-3 text-left group focus:outline-none min-w-0 cursor-pointer"
           >
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full ring-2 ring-blue-400/60 overflow-hidden shadow-md flex-shrink-0 bg-blue-800">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full ring-2 ring-blue-400/60 overflow-hidden shadow-md shrink-0 bg-blue-800">
               <img
                 src="/ambedkar_portrait.jpg"
                 alt="Dr. B. R. Ambedkar"
@@ -46,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <h1 className="font-black text-white text-base sm:text-xl tracking-tight leading-tight truncate">
                   MOBILE DIRECTORY
                 </h1>
-                <span className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider">
+                <span className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider shrink-0">
                   मोबाइल डायरेक्टरी
                 </span>
               </div>
@@ -63,11 +63,11 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 id="desktop-nav-home"
                 onClick={() => setActiveTab('home')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
                   activeTab === 'home' ? 'bg-blue-700 text-white' : 'text-blue-200 hover:text-white hover:bg-blue-900/50'
                 }`}
               >
-                <Home className="w-3.5 h-3.5" />
+                <Home className="w-3.5 h-3.5 shrink-0" />
                 <span>होम</span>
               </button>
 
@@ -75,11 +75,11 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 id="desktop-nav-villages"
                 onClick={() => setActiveTab('villages')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
                   activeTab === 'villages' ? 'bg-blue-700 text-white' : 'text-blue-200 hover:text-white hover:bg-blue-900/50'
                 }`}
               >
-                <Layers className="w-3.5 h-3.5" />
+                <Layers className="w-3.5 h-3.5 shrink-0" />
                 <span>गाँव</span>
               </button>
 
@@ -87,11 +87,11 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 id="desktop-nav-help"
                 onClick={() => setActiveTab('help')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
                   activeTab === 'help' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-300 hover:text-white hover:bg-emerald-950/50'
                 }`}
               >
-                <HelpCircle className="w-3.5 h-3.5" />
+                <HelpCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>हेल्प / सहायता</span>
               </button>
 
@@ -99,11 +99,11 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 id="desktop-nav-favorites"
                 onClick={() => setActiveTab('favorites')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
                   activeTab === 'favorites' ? 'bg-amber-500 text-slate-950' : 'text-blue-200 hover:text-white hover:bg-blue-900/50'
                 }`}
               >
-                <Star className="w-3.5 h-3.5" />
+                <Star className="w-3.5 h-3.5 shrink-0" />
                 <span>पसंदीदा</span>
               </button>
 
@@ -111,11 +111,11 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 id="desktop-nav-admin"
                 onClick={() => setActiveTab('admin')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors relative cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors relative cursor-pointer shrink-0 ${
                   activeTab === 'admin' ? 'bg-amber-600 text-white' : 'text-blue-200 hover:text-white hover:bg-blue-900/50'
                 }`}
               >
-                <ShieldCheck className="w-3.5 h-3.5" />
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
                 <span>{isAdmin ? 'एडमिन' : 'लॉगिन'}</span>
                 {pendingApprovalsCount > 0 && (
                   <span className="ml-1 px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-black animate-pulse">
@@ -126,17 +126,30 @@ export const Header: React.FC<HeaderProps> = ({
             </nav>
           )}
 
-          {/* Right Side Actions: Install App & Share */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Right Side Actions: Add Contact, Install App & Share */}
+          <div className="flex items-center gap-2 shrink-0">
+            {setActiveTab && (
+              <button
+                type="button"
+                id="header-add-contact-btn"
+                onClick={() => setActiveTab('add')}
+                title="नया संपर्क डायरेक्टरी में जोड़ें"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs border border-emerald-400/50 transition-all cursor-pointer active:scale-95 shrink-0"
+              >
+                <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5] shrink-0" />
+                <span>संपर्क जोड़ें</span>
+              </button>
+            )}
+
             {onInstallClick && (
               <button
                 type="button"
                 id="header-install-app-btn"
                 onClick={onInstallClick}
                 title="यादव समाज मोबाइल डायरेक्टरी ऐप अपने फ़ोन में इनस्टॉल करें"
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-blue-700 hover:bg-blue-600 text-white shadow-xs border border-blue-400/50 transition-all cursor-pointer active:scale-95"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-blue-700 hover:bg-blue-600 text-white shadow-xs border border-blue-400/50 transition-all cursor-pointer active:scale-95 shrink-0"
               >
-                <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5] text-amber-300" />
+                <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5] text-amber-300 shrink-0" />
                 <span>इनस्टॉल</span>
               </button>
             )}
@@ -147,9 +160,9 @@ export const Header: React.FC<HeaderProps> = ({
                 id="header-share-app-btn"
                 onClick={onShare}
                 title="यादव समाज मोबाइल डायरेक्टरी ऐप शेयर करें"
-                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md transition-all cursor-pointer active:scale-95 border border-amber-300"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md transition-all cursor-pointer active:scale-95 border border-amber-300 shrink-0"
               >
-                <Share2 className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+                <Share2 className="w-4 h-4 text-slate-950 stroke-[2.5] shrink-0" />
                 <span>शेयर करें</span>
               </button>
             )}
@@ -159,5 +172,3 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
-
-

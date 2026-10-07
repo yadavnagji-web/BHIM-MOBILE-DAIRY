@@ -123,10 +123,10 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 leading-tight">
-                संपर्क हटाने की पुष्टि (Delete Contact)
+                {isAdmin ? 'संपर्क हटाने की पुष्टि (एडमिन)' : 'संपर्क हटाने की पुष्टि (Delete Contact)'}
               </h3>
               <p className="text-xs text-rose-700 font-semibold">
-                WhatsApp OTP सुरक्षा सत्यापन
+                {isAdmin ? '⚡ एडमिन मोड: बिना OTP तुरंत हटाएं' : 'WhatsApp OTP सुरक्षा सत्यापन'}
               </p>
             </div>
           </div>
